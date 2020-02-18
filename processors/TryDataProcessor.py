@@ -21,6 +21,11 @@ class TryDataProcessor:
         """See base class."""
         return []
 
+    def get_augment_examples(self, data_dir):
+        """See base class."""
+        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "augment.csv")))
+        return self._create_examples(self._read_csv(os.path.join(data_dir, "augment.csv"),), "augment")
+
     def get_all_examples(self, data_dir):
         """See base class."""
         train = self.get_train_examples(data_dir)
@@ -51,3 +56,6 @@ class TryDataProcessor:
             for line in tsv_list[1:]:
                 data_list.append([line[0], line[1], line[2], line[3]])
         return data_list
+
+# if __name__ == "__main__":
+#     print(TryDataProcessor._read_csv(input_file=''))

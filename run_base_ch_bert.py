@@ -57,6 +57,7 @@ class NewsConfig:
         self.dev_split = 0.1
         self.test_split = 0.1
         self.seed = 369
+        self.data_augment = True   #增强数据标签
 
 
 def thucNews_task(config):
@@ -71,8 +72,9 @@ def thucNews_task(config):
     processor = TryDataProcessor()
     config.class_list = processor.get_labels()
     config.num_labels = len(config.class_list)
-
     total_examples = processor.get_train_examples(config.data_dir)
+    if config.data_augment == True:     #增强数据
+        total_examples.extend(processor.get_augment_examples(config.data_dir))
     total_features = convert_examples_to_features(
         total_examples,
         tokenizer,

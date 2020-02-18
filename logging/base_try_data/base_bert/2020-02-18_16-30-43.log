@@ -1,0 +1,211 @@
+INFO: Model name '/data/tmp/zywei/competation/pretrain_models/bert-base-chinese/vocab.txt' not found in model shortcut name list (bert-base-uncased, bert-large-uncased, bert-base-cased, bert-large-cased, bert-base-multilingual-uncased, bert-base-multilingual-cased, bert-base-chinese, bert-base-german-cased, bert-large-uncased-whole-word-masking, bert-large-cased-whole-word-masking, bert-large-uncased-whole-word-masking-finetuned-squad, bert-large-cased-whole-word-masking-finetuned-squad, bert-base-cased-finetuned-mrpc, bert-base-german-dbmdz-cased, bert-base-german-dbmdz-uncased, bert-base-finnish-cased-v1, bert-base-finnish-uncased-v1). Assuming '/data/tmp/zywei/competation/pretrain_models/bert-base-chinese/vocab.txt' is a path or url to a directory containing tokenizer files.
+INFO: Didn't find file /data/tmp/zywei/competation/pretrain_models/bert-base-chinese/added_tokens.json. We won't load it.
+INFO: Didn't find file /data/tmp/zywei/competation/pretrain_models/bert-base-chinese/special_tokens_map.json. We won't load it.
+INFO: Didn't find file /data/tmp/zywei/competation/pretrain_models/bert-base-chinese/tokenizer_config.json. We won't load it.
+INFO: loading file /data/tmp/zywei/competation/pretrain_models/bert-base-chinese/vocab.txt
+INFO: loading file None
+INFO: loading file None
+INFO: loading file None
+INFO: LOOKING AT /data/tmp/zywei/competation/try_data/train.csv
+INFO: LOOKING AT /data/tmp/zywei/competation/try_data/augment.csv
+INFO: *** Example ***
+INFO: guid: train-1
+INFO: input_ids: 101 5687 3996 4567 4970 1366 3309 833 1139 4385 5592 3811 4568 4307 1408 102 1928 4563 5592 3811 1724 5501 3187 1213 3221 679 3221 5687 3996 4567 102 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+INFO: attention_mask: 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+INFO: token_type_ids: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+INFO: label: 0 (id = 0)
+INFO: *** Example ***
+INFO: guid: train-2
+INFO: input_ids: 101 4507 754 5131 2228 4567 2471 6629 3314 3456 4868 5307 4142 8024 2582 720 3418 3780 8043 102 5131 2228 4567 3314 3456 4868 5307 4142 4638 3780 4545 3175 3791 102 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+INFO: attention_mask: 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+INFO: token_type_ids: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+INFO: label: 1 (id = 1)
+INFO: *** Example ***
+INFO: guid: train-3
+INFO: input_ids: 101 150 1798 7770 6117 1327 8024 3221 6858 2792 6432 4638 7770 6117 5544 8043 102 7770 6117 1327 2471 6629 5554 1139 6117 2582 720 2843 3131 3780 4545 102 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+INFO: attention_mask: 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+INFO: token_type_ids: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+INFO: label: 0 (id = 0)
+INFO: self config {
+  "batch_size": 32,
+  "class_list": [
+    "0",
+    "1"
+  ],
+  "config_file": "/data/tmp/zywei/competation/pretrain_models/bert-base-chinese/config.json",
+  "data_augment": true,
+  "data_dir": "/data/tmp/zywei/competation/try_data",
+  "dev_num_examples": 3994,
+  "dev_split": 0.1,
+  "device": "cuda",
+  "device_id": 3,
+  "do_lower_case": true,
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 768,
+  "is_logging2file": true,
+  "label_on_test_set": true,
+  "learning_rate": 1e-05,
+  "load_save_model": false,
+  "logging_dir": "/data/tmp/zywei/competation/logging/base_try_data/base_bert",
+  "model_name_or_path": "/data/tmp/zywei/competation/pretrain_models/bert-base-chinese/pytorch_model.bin",
+  "models_name": "base_bert",
+  "num_labels": 2,
+  "num_train_epochs": 8,
+  "pad_size": 64,
+  "require_improvement": 1000,
+  "requires_grad": true,
+  "save_path": "/data/tmp/zywei/competation/model_saved/base_try_data",
+  "seed": 369,
+  "task": "base_try_data",
+  "test_num_examples": 3994,
+  "test_split": 0.1,
+  "tokenizer_file": "/data/tmp/zywei/competation/pretrain_models/bert-base-chinese/vocab.txt",
+  "train_num_examples": 31956,
+  "warmup_proportion": 0.1,
+  "weight_decay": 0.01
+}
+
+INFO: loading configuration file /data/tmp/zywei/competation/pretrain_models/bert-base-chinese/config.json
+INFO: Model config {
+  "attention_probs_dropout_prob": 0.1,
+  "directionality": "bidi",
+  "finetuning_task": "base_try_data",
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 768,
+  "id2label": {
+    "0": "LABEL_0",
+    "1": "LABEL_1"
+  },
+  "initializer_range": 0.02,
+  "intermediate_size": 3072,
+  "is_decoder": false,
+  "label2id": {
+    "LABEL_0": 0,
+    "LABEL_1": 1
+  },
+  "layer_norm_eps": 1e-12,
+  "max_position_embeddings": 512,
+  "num_attention_heads": 12,
+  "num_hidden_layers": 12,
+  "num_labels": 2,
+  "output_attentions": false,
+  "output_hidden_states": false,
+  "output_past": true,
+  "pooler_fc_size": 768,
+  "pooler_num_attention_heads": 12,
+  "pooler_num_fc_layers": 3,
+  "pooler_size_per_head": 128,
+  "pooler_type": "first_token_transform",
+  "pruned_heads": {},
+  "torchscript": false,
+  "type_vocab_size": 2,
+  "use_bfloat16": false,
+  "vocab_size": 21128
+}
+
+INFO: loading weights file /data/tmp/zywei/competation/pretrain_models/bert-base-chinese/pytorch_model.bin
+INFO: ***** Running training *****
+INFO:   Train Num examples = 31956
+INFO:   Dev Num examples = 3994
+INFO:   Num Epochs = 8
+INFO:   Instantaneous batch size GPU/CPU = 32
+INFO:   Total optimization steps = 7992
+INFO:   Train device:cuda, id:3
+INFO: Epoch [1/8]
+INFO: Iter:    100,  Train Loss: 0.638243,  Train Acc: 48.00%,  Val Loss: 0.658652,  Val Acc: 61.62%,  Time: 23.265428066253662 *
+INFO: Iter:    200,  Train Loss: 0.581215,  Train Acc: 64.78%,  Val Loss: 0.540263,  Val Acc: 74.04%,  Time: 46.920414209365845 *
+INFO: Iter:    300,  Train Loss: 0.541107,  Train Acc: 74.00%,  Val Loss: 0.461775,  Val Acc: 78.74%,  Time: 70.58697748184204 *
+INFO: Iter:    400,  Train Loss: 0.472668,  Train Acc: 78.84%,  Val Loss: 0.403983,  Val Acc: 81.75%,  Time: 94.2166759967804 *
+INFO: Iter:    500,  Train Loss: 0.288048,  Train Acc: 81.66%,  Val Loss: 0.372188,  Val Acc: 83.83%,  Time: 117.88225769996643 *
+INFO: Iter:    600,  Train Loss: 0.420151,  Train Acc: 84.06%,  Val Loss: 0.346511,  Val Acc: 85.15%,  Time: 141.52618312835693 *
+INFO: Iter:    700,  Train Loss: 0.423522,  Train Acc: 82.12%,  Val Loss: 0.328204,  Val Acc: 86.20%,  Time: 165.20174860954285 *
+INFO: Iter:    800,  Train Loss: 0.489276,  Train Acc: 84.00%,  Val Loss: 0.321821,  Val Acc: 86.55%,  Time: 189.14441537857056 *
+INFO: Iter:    900,  Train Loss: 0.235748,  Train Acc: 84.41%,  Val Loss: 0.306502,  Val Acc: 87.28%,  Time: 212.65759825706482 *
+INFO: Epoch [2/8]
+INFO: Iter:   1000,  Train Loss: 0.147869,  Train Acc: 86.04%,  Val Loss: 0.296750,  Val Acc: 87.93%,  Time: 236.17175483703613 *
+INFO: Iter:   1100,  Train Loss: 0.224005,  Train Acc: 88.66%,  Val Loss: 0.279443,  Val Acc: 88.86%,  Time: 259.6919014453888 *
+INFO: Iter:   1200,  Train Loss: 0.279768,  Train Acc: 88.91%,  Val Loss: 0.277240,  Val Acc: 88.86%,  Time: 283.2013132572174 *
+INFO: Iter:   1300,  Train Loss: 0.174018,  Train Acc: 89.59%,  Val Loss: 0.264745,  Val Acc: 90.11%,  Time: 306.7115316390991 *
+INFO: Iter:   1400,  Train Loss: 0.164461,  Train Acc: 89.12%,  Val Loss: 0.263542,  Val Acc: 89.18%,  Time: 330.2782783508301 *
+INFO: Iter:   1500,  Train Loss: 0.119468,  Train Acc: 89.59%,  Val Loss: 0.267593,  Val Acc: 89.61%,  Time: 353.7986912727356 
+INFO: Iter:   1600,  Train Loss: 0.341774,  Train Acc: 90.56%,  Val Loss: 0.254898,  Val Acc: 90.16%,  Time: 377.3135139942169 *
+INFO: Iter:   1700,  Train Loss: 0.240819,  Train Acc: 90.50%,  Val Loss: 0.240359,  Val Acc: 90.86%,  Time: 400.82149744033813 *
+INFO: Iter:   1800,  Train Loss: 0.113368,  Train Acc: 89.31%,  Val Loss: 0.247128,  Val Acc: 90.29%,  Time: 424.96369886398315 
+INFO: Iter:   1900,  Train Loss: 0.128622,  Train Acc: 91.16%,  Val Loss: 0.229289,  Val Acc: 91.56%,  Time: 448.4863817691803 *
+INFO: Epoch [3/8]
+INFO: Iter:   2000,  Train Loss: 0.103077,  Train Acc: 91.12%,  Val Loss: 0.217998,  Val Acc: 91.59%,  Time: 472.1183593273163 *
+INFO: Iter:   2100,  Train Loss: 0.145005,  Train Acc: 93.75%,  Val Loss: 0.238914,  Val Acc: 90.96%,  Time: 495.64799761772156 
+INFO: Iter:   2200,  Train Loss: 0.045878,  Train Acc: 94.47%,  Val Loss: 0.223910,  Val Acc: 92.41%,  Time: 519.2154152393341 
+INFO: Iter:   2300,  Train Loss: 0.155602,  Train Acc: 93.34%,  Val Loss: 0.207747,  Val Acc: 92.69%,  Time: 542.8700954914093 *
+INFO: Iter:   2400,  Train Loss: 0.143823,  Train Acc: 93.72%,  Val Loss: 0.196721,  Val Acc: 93.09%,  Time: 566.4090492725372 *
+INFO: Iter:   2500,  Train Loss: 0.091102,  Train Acc: 93.97%,  Val Loss: 0.194944,  Val Acc: 93.14%,  Time: 589.8649816513062 *
+INFO: Iter:   2600,  Train Loss: 0.079051,  Train Acc: 93.31%,  Val Loss: 0.191536,  Val Acc: 93.29%,  Time: 613.3700714111328 *
+INFO: Iter:   2700,  Train Loss: 0.117009,  Train Acc: 93.94%,  Val Loss: 0.201070,  Val Acc: 93.16%,  Time: 636.8848083019257 
+INFO: Iter:   2800,  Train Loss: 0.182015,  Train Acc: 94.09%,  Val Loss: 0.188743,  Val Acc: 93.06%,  Time: 660.3668301105499 *
+INFO: Iter:   2900,  Train Loss: 0.108700,  Train Acc: 94.38%,  Val Loss: 0.197316,  Val Acc: 92.66%,  Time: 684.1281728744507 
+INFO: Epoch [4/8]
+INFO: Iter:   3000,  Train Loss: 0.130377,  Train Acc: 95.51%,  Val Loss: 0.195919,  Val Acc: 93.01%,  Time: 708.1250159740448 
+INFO: Iter:   3100,  Train Loss: 0.165201,  Train Acc: 96.75%,  Val Loss: 0.184805,  Val Acc: 93.94%,  Time: 732.0664622783661 *
+INFO: Iter:   3200,  Train Loss: 0.031764,  Train Acc: 97.00%,  Val Loss: 0.187762,  Val Acc: 93.77%,  Time: 755.6533830165863 
+INFO: Iter:   3300,  Train Loss: 0.188431,  Train Acc: 96.81%,  Val Loss: 0.189951,  Val Acc: 93.57%,  Time: 779.2273392677307 
+INFO: Iter:   3400,  Train Loss: 0.107946,  Train Acc: 96.31%,  Val Loss: 0.185173,  Val Acc: 93.89%,  Time: 802.790994644165 
+INFO: Iter:   3500,  Train Loss: 0.091947,  Train Acc: 96.62%,  Val Loss: 0.174126,  Val Acc: 94.42%,  Time: 826.3127484321594 *
+INFO: Iter:   3600,  Train Loss: 0.190958,  Train Acc: 95.91%,  Val Loss: 0.166874,  Val Acc: 94.42%,  Time: 849.8706178665161 *
+INFO: Iter:   3700,  Train Loss: 0.154347,  Train Acc: 96.66%,  Val Loss: 0.175517,  Val Acc: 94.39%,  Time: 873.4364583492279 
+INFO: Iter:   3800,  Train Loss: 0.029034,  Train Acc: 97.00%,  Val Loss: 0.175822,  Val Acc: 94.37%,  Time: 896.98362159729 
+INFO: Iter:   3900,  Train Loss: 0.236695,  Train Acc: 96.25%,  Val Loss: 0.159482,  Val Acc: 94.69%,  Time: 920.4987599849701 *
+INFO: Epoch [5/8]
+INFO: Iter:   4000,  Train Loss: 0.025034,  Train Acc: 96.68%,  Val Loss: 0.151278,  Val Acc: 95.12%,  Time: 943.9683663845062 *
+INFO: Iter:   4100,  Train Loss: 0.031730,  Train Acc: 98.22%,  Val Loss: 0.159166,  Val Acc: 95.29%,  Time: 967.4845733642578 
+INFO: Iter:   4200,  Train Loss: 0.010068,  Train Acc: 98.03%,  Val Loss: 0.151701,  Val Acc: 95.34%,  Time: 991.0049674510956 
+INFO: Iter:   4300,  Train Loss: 0.012059,  Train Acc: 97.44%,  Val Loss: 0.152219,  Val Acc: 95.24%,  Time: 1014.5284268856049 
+INFO: Iter:   4400,  Train Loss: 0.172926,  Train Acc: 98.03%,  Val Loss: 0.155377,  Val Acc: 95.49%,  Time: 1038.0758383274078 
+INFO: Iter:   4500,  Train Loss: 0.052922,  Train Acc: 97.88%,  Val Loss: 0.150357,  Val Acc: 95.82%,  Time: 1061.6211352348328 *
+INFO: Iter:   4600,  Train Loss: 0.042114,  Train Acc: 98.03%,  Val Loss: 0.153056,  Val Acc: 95.44%,  Time: 1085.137380361557 
+INFO: Iter:   4700,  Train Loss: 0.173574,  Train Acc: 97.75%,  Val Loss: 0.151058,  Val Acc: 95.59%,  Time: 1108.6779158115387 
+INFO: Iter:   4800,  Train Loss: 0.058711,  Train Acc: 98.16%,  Val Loss: 0.143150,  Val Acc: 95.77%,  Time: 1132.2117669582367 *
+INFO: Iter:   4900,  Train Loss: 0.027579,  Train Acc: 97.50%,  Val Loss: 0.138064,  Val Acc: 95.94%,  Time: 1155.7384440898895 *
+INFO: Epoch [6/8]
+INFO: Iter:   5000,  Train Loss: 0.016866,  Train Acc: 97.99%,  Val Loss: 0.145953,  Val Acc: 95.74%,  Time: 1179.2131416797638 
+INFO: Iter:   5100,  Train Loss: 0.017416,  Train Acc: 98.44%,  Val Loss: 0.143503,  Val Acc: 95.89%,  Time: 1203.456178188324 
+INFO: Iter:   5200,  Train Loss: 0.061317,  Train Acc: 98.91%,  Val Loss: 0.143709,  Val Acc: 95.87%,  Time: 1226.912897348404 
+INFO: Iter:   5300,  Train Loss: 0.020764,  Train Acc: 98.75%,  Val Loss: 0.140918,  Val Acc: 96.24%,  Time: 1250.358169555664 
+INFO: Iter:   5400,  Train Loss: 0.012511,  Train Acc: 98.41%,  Val Loss: 0.142043,  Val Acc: 96.17%,  Time: 1273.8034582138062 
+INFO: Iter:   5500,  Train Loss: 0.008781,  Train Acc: 98.66%,  Val Loss: 0.138030,  Val Acc: 96.22%,  Time: 1297.5114426612854 *
+INFO: Iter:   5600,  Train Loss: 0.023115,  Train Acc: 98.59%,  Val Loss: 0.131372,  Val Acc: 96.32%,  Time: 1321.0191857814789 *
+INFO: Iter:   5700,  Train Loss: 0.006525,  Train Acc: 98.53%,  Val Loss: 0.130218,  Val Acc: 96.49%,  Time: 1344.5412125587463 *
+INFO: Iter:   5800,  Train Loss: 0.024424,  Train Acc: 98.66%,  Val Loss: 0.129936,  Val Acc: 96.47%,  Time: 1368.568421125412 *
+INFO: Iter:   5900,  Train Loss: 0.082961,  Train Acc: 98.47%,  Val Loss: 0.128653,  Val Acc: 96.70%,  Time: 1391.995439529419 *
+INFO: Epoch [7/8]
+INFO: Iter:   6000,  Train Loss: 0.021411,  Train Acc: 98.43%,  Val Loss: 0.123079,  Val Acc: 96.77%,  Time: 1415.4281210899353 *
+INFO: Iter:   6100,  Train Loss: 0.084577,  Train Acc: 99.12%,  Val Loss: 0.127732,  Val Acc: 96.72%,  Time: 1439.2599694728851 
+INFO: Iter:   6200,  Train Loss: 0.059088,  Train Acc: 98.78%,  Val Loss: 0.124367,  Val Acc: 96.77%,  Time: 1462.6933205127716 
+INFO: Iter:   6300,  Train Loss: 0.013656,  Train Acc: 98.66%,  Val Loss: 0.126149,  Val Acc: 96.75%,  Time: 1486.1342558860779 
+INFO: Iter:   6400,  Train Loss: 0.153569,  Train Acc: 99.09%,  Val Loss: 0.130979,  Val Acc: 96.57%,  Time: 1509.5617082118988 
+INFO: Iter:   6500,  Train Loss: 0.005288,  Train Acc: 98.91%,  Val Loss: 0.130896,  Val Acc: 96.75%,  Time: 1533.0038912296295 
+INFO: Iter:   6600,  Train Loss: 0.004130,  Train Acc: 98.81%,  Val Loss: 0.128760,  Val Acc: 96.70%,  Time: 1556.4502458572388 
+INFO: Iter:   6700,  Train Loss: 0.075788,  Train Acc: 98.97%,  Val Loss: 0.129316,  Val Acc: 96.75%,  Time: 1579.8771135807037 
+INFO: Iter:   6800,  Train Loss: 0.034468,  Train Acc: 99.03%,  Val Loss: 0.128519,  Val Acc: 96.92%,  Time: 1603.3454113006592 
+INFO: Iter:   6900,  Train Loss: 0.022853,  Train Acc: 98.81%,  Val Loss: 0.128897,  Val Acc: 96.80%,  Time: 1626.8148629665375 
+INFO: Epoch [8/8]
+INFO: Iter:   7000,  Train Loss: 0.029369,  Train Acc: 98.93%,  Val Loss: 0.129290,  Val Acc: 96.95%,  Time: 1650.2311239242554 
+INFO: No optimization for a long time, auto-stopping...
+INFO: ***** Running testing *****
+INFO:   Test Num examples = 3994
+INFO: Test Loss: 0.1819,  Test Acc: 95.74%
+INFO: Precision, Recall and F1-Score...
+INFO:               precision    recall  f1-score   support
+
+           0     0.9573    0.9563    0.9568      1970
+           1     0.9576    0.9585    0.9580      2024
+
+    accuracy                         0.9574      3994
+   macro avg     0.9574    0.9574    0.9574      3994
+weighted avg     0.9574    0.9574    0.9574      3994
+
+INFO: Confusion Matrix...
+INFO: [[1884   86]
+ [  84 1940]]
+INFO: Time usage:6.340088s
+INFO: model saved, path: /data/tmp/zywei/competation/model_saved/base_try_data/base_bert.pkl
