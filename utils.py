@@ -83,7 +83,7 @@ def convert_examples_to_features(
     pad_token_segment_id=0,
 ):
     """
-    :param examples: List of ``InputExamples``
+    :param examples: List [ sentences1,sentences2,label, category]
     :param tokenizer: Instance of a tokenizer that will tokenize the examples
     :param label_list: List of labels.
     :param max_length: Maximum example length
@@ -95,7 +95,7 @@ def convert_examples_to_features(
 
     features = []
     for (index, example) in enumerate(examples):
-        inputs = tokenizer.encode_plus(example.text_a, example.text_b, add_special_tokens=True, max_length=max_length)
+        inputs = tokenizer.encode_plus(example[0], example[1], add_special_tokens=True, max_length=max_length)
         input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
         attention_mask = [1] * len(input_ids)
 
@@ -106,20 +106,20 @@ def convert_examples_to_features(
         attention_mask = attention_mask + ([0] * padding_length)
         token_type_ids = token_type_ids + ([pad_token_segment_id] * padding_length)
 
-        if example.label is not None:
-            label = label_map[example.label]
+        if example[2] is not None:
+            label = label_map[example[2]]
         else:
             label = None
 
         if index < 3:
             logger.info("*** Example ***")
-            logger.info("guid: %s" % (example.guid))
+            logger.info("guid: %s" % (index))
             logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
             logger.info("attention_mask: %s" % " ".join([str(x) for x in attention_mask]))
             logger.info("token_type_ids: %s" % " ".join([str(x) for x in token_type_ids]))
 
-            if example.label is not None:
-                logger.info("label: %s (id = %d)" % (example.label, label))
+            if example[2] is not None:
+                logger.info("label: %s (id = %d)" % (example[2], label))
 
         features.append(
             InputFeatures(input_ids, attention_mask, token_type_ids, label)

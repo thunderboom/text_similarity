@@ -1,4 +1,3 @@
-from utils import InputExample
 import logging
 import os
 import csv
@@ -11,7 +10,7 @@ class TryDataProcessor:
     def get_train_examples(self, data_dir):
         """See base class."""
         logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.csv")))
-        return self._create_examples(self._read_csv(os.path.join(data_dir, "train.csv"),), "train")
+        return self._read_csv(os.path.join(data_dir, "train.csv"))
 
     def get_dev_examples(self, data_dir):
         """See base class."""
@@ -24,7 +23,7 @@ class TryDataProcessor:
     def get_augment_examples(self, data_dir):
         """See base class."""
         logger.info("LOOKING AT {}".format(os.path.join(data_dir, "augment.csv")))
-        return self._create_examples(self._read_csv(os.path.join(data_dir, "augment.csv"),), "augment")
+        return self._read_csv(os.path.join(data_dir, "augment.csv"))
 
     def get_all_examples(self, data_dir):
         """See base class."""
@@ -37,19 +36,13 @@ class TryDataProcessor:
         """See base class."""
         return ["0", "1"]
 
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-            guid = "%s-%s" % (set_type, i+1)
-            text_a = line[0]
-            text_b = line[1]
-            label = line[2]
-            examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
     @classmethod
     def _read_csv(cls, input_file):
+        """
+        :param input_file:
+        :return: list [ sentences1,sentences2,label, category]
+                if not sentences2, set None. the others same.
+        """
         data_list = []
         with open(input_file, "r", encoding="utf-8-sig") as f:
             tsv_list = list(csv.reader(f))
@@ -57,5 +50,6 @@ class TryDataProcessor:
                 data_list.append([line[0], line[1], line[2], line[3]])
         return data_list
 
+
 # if __name__ == "__main__":
-#     print(TryDataProcessor._read_csv(input_file=''))
+#     print(TryDataProcessor._read_csv(input_file='../try_data/train.csv'))
