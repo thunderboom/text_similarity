@@ -1,4 +1,5 @@
 # coding: UTF-8
+import os
 import logging
 import numpy as np
 import torch
@@ -142,3 +143,21 @@ def model_test(config, model, test_iter):
     logger.info(test_confusion)
     time_dif = time.time() - start_time
     logger.info("Time usage:%.6fs", time_dif)
+
+
+def model_save(config, model):
+    if not os.path.exists(config.save_path):
+        os.makedirs(config.save_path)
+    file_name = os.path.join(config.save_path, config.models_name+'.pkl')
+    torch.save(model.state_dict(), file_name)
+    logger.info("model saved, path: %s", file_name)
+
+
+def model_load(config, model):
+    device = config.device.type
+    device_id = config.device_id
+    file_name = os.path.join(config.save_path, config.models_name+'.pkl')
+    logger.info('loading model: %s', file_name)
+    model.load_state_dict(torch.load(file_name,
+                                     map_location=device if device == 'cpu' else "{}:{}".format(device, device_id)))
+

@@ -7,7 +7,7 @@ from processors.TryDataProcessor import TryDataProcessor
 from utils import convert_examples_to_features, BuildDataSet, config_to_json_string, random_seed
 from transformers import BertTokenizer
 from models.bert import Bert
-from train_eval import model_train, model_test
+from train_eval import model_train, model_test, model_save, model_load
 import time
 import json
 import copy
@@ -45,12 +45,15 @@ class NewsConfig:
         self.num_train_epochs = 8                                                               # epoch数
         self.batch_size = 32                                                                     # mini-batch大小
         self.pad_size = 64                                                                      # 每句话处理成的长度
-        self.learning_rate = 2e-5                                                               # 学习率
+        self.learning_rate = 1e-5                                                               # 学习率
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
         # logging
         self.is_logging2file = True
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
+        # save
+        self.load_save_model = False
+        self.save_path = absdir + '/model_saved' + '/' + self.task
         self.dev_split = 0.1
         self.test_split = 0.1
         self.seed = 369
@@ -95,8 +98,11 @@ def thucNews_task(config):
 
     logging.info("self config %s", config_to_json_string(config))
     bert_model = Bert(config).to(config.device)
+    if config.load_save_model:
+        model_load(config, bert_model)
     model_train(config, bert_model, train_loader, dev_loader)
     model_test(config, bert_model, test_loader)
+    model_save(config, bert_model)
 
 
 if __name__ == '__main__':
