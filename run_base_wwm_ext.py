@@ -4,12 +4,14 @@ import torch
 import torch.utils.data as Data
 from torch.utils.data import DataLoader
 from processors.TryDataProcessor import TryDataProcessor
-from utils import convert_examples_to_features, BuildDataSet, config_to_json_string, random_seed
 from transformers import BertTokenizer
 from models.bert import Bert
-from train_eval import model_train, model_test, model_save, model_load
+from train_eval import *
 import time
-import json
+
+from k_fold import k_fold_cross_validation
+from utils.augment import DataAugment
+from utils.utils import *
 
 
 class NewsConfig:
@@ -41,13 +43,14 @@ class NewsConfig:
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
         self.hidden_size = 768
-        self.require_improvement = 1000                                                         # 若超过1000batch效果还没提升，则提前结束训练
+        self.require_improvement = 900                                                         # 若超过1000batch效果还没提升，则提前结束训练
         self.num_train_epochs = 8                                                               # epoch数
         self.batch_size = 32                                                                     # mini-batch大小
         self.pad_size = 64                                                                      # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
+        self.k_fold = 5
         # logging
         self.is_logging2file = True
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
@@ -57,6 +60,9 @@ class NewsConfig:
         self.dev_split = 0.1
         self.test_split = 0.1
         self.seed = 369
+        # 数据增强
+        self.data_augment = True  # 增强数据标签
+        self.data_augment_args = 'themword'
 
 
 def thucNews_task(config):
@@ -72,37 +78,26 @@ def thucNews_task(config):
     config.class_list = processor.get_labels()
     config.num_labels = len(config.class_list)
 
+    # 读取数据
     total_examples = processor.get_train_examples(config.data_dir)
-    total_features = convert_examples_to_features(
-        total_examples,
-        tokenizer,
-        config.class_list,
-        config.pad_size
-    )
-    config.dev_num_examples = int(len(total_features) * config.dev_split)
-    config.test_num_examples = int(len(total_features) * config.test_split)
-    config.train_num_examples = len(total_features) - config.dev_num_examples - config.test_num_examples
-    train_data, dev_data, test_data = Data.random_split(
-        total_features, [config.train_num_examples, config.dev_num_examples, config.test_num_examples])
+    # 划分训练集（做K折）和测试集
+    train_examples, test_examples = train_test_split(config, total_examples)
 
-    train_features = [train_data.dataset[idx] for idx in train_data.indices]
-    dev_features = [dev_data.dataset[idx] for idx in dev_data.indices]
-    test_features = [test_data.dataset[idx] for idx in test_data.indices]
-
-    train_dataset = BuildDataSet(train_features)
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    dev_dataset = BuildDataSet(dev_features)
-    dev_loader = DataLoader(dev_dataset, batch_size=config.batch_size, shuffle=True)
-    test_dataset = BuildDataSet(test_features)
-    test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True)
-    #
     logging.info("self config %s", config_to_json_string(config))
-    bert_model = Bert(config).to(config.device)
+
+    model = Bert(config)
     if config.load_save_model:
-        model_load(config, bert_model)
-    model_train(config, bert_model, train_loader, dev_loader)
-    model_test(config, bert_model, test_loader)
-    model_save(config, bert_model)
+        model_load(config, model, device='cpu')
+
+    dev_ev, predict = k_fold_cross_validation(
+        config, train_examples, model, tokenizer,
+        train_enhancement=DataAugment().dataAugment if config.data_augment else None,
+        enhancement_arg=config.data_augment_args,
+        test_examples=test_examples)
+    # for acc, loss in dev_ev:
+    #     logging.info('acc: {0:>6.2%}, loss: {1:>.6f}'.format(acc, loss))
+    # for pre in predict:
+    #     logging.info(pre)
 
 
 if __name__ == '__main__':

@@ -125,7 +125,7 @@ def model_evaluate(config, model, data_iter, test=False):
     if test:
         report = metrics.classification_report(labels_all, predict_all, target_names=config.class_list, digits=4)
         confusion = metrics.confusion_matrix(labels_all, predict_all)
-        return acc, loss_total / len(data_iter), report, confusion
+        return acc, loss_total / len(data_iter), report, confusion, predict_all
     return acc, loss_total / len(data_iter)
 
 
@@ -134,7 +134,7 @@ def model_test(config, model, test_iter):
     logger.info("***** Running testing *****")
     logger.info("  Test Num examples = %d", config.test_num_examples)
     start_time = time.time()
-    test_acc, test_loss, test_report, test_confusion = model_evaluate(config, model, test_iter, test=True)
+    test_acc, test_loss, test_report, test_confusion, _ = model_evaluate(config, model, test_iter, test=True)
     msg = 'Test Loss: {0:>5.4},  Test Acc: {1:>6.2%}'
     logger.info(msg.format(test_loss, test_acc))
     logger.info("Precision, Recall and F1-Score...")
@@ -153,8 +153,7 @@ def model_save(config, model):
     logger.info("model saved, path: %s", file_name)
 
 
-def model_load(config, model):
-    device = config.device.type
+def model_load(config, model, device='cpu'):
     device_id = config.device_id
     file_name = os.path.join(config.save_path, config.models_name+'.pkl')
     logger.info('loading model: %s', file_name)
