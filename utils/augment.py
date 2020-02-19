@@ -36,7 +36,7 @@ class DataAugment:
                     new_labels.append(label)
                     new_categories.append(category)
                 else:
-                    print('sample')
+                    # print('sample')
                     if random.random() >= 0.9:
                         if len(q1) != len(new_q1) and len(q2) != len(new_q2):
                             new_questions1.append(new_q1)
@@ -105,7 +105,7 @@ class DataAugment:
             else:
                 all_data = pd.concat((all_data, new_data), ignore_index=True)
 
-        print('genarate data finished')
+        # print('genarate data finished')
         return self.dataframe_list(all_data)
 
 
