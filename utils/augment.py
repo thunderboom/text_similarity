@@ -3,7 +3,8 @@ import jieba
 import random
 import os
 
-class DataAugment():
+
+class DataAugment:
     def __init__(self):
         self.columns = ['question1', 'question2', 'label', 'category']
         self.save_path = '../try_data/augment.csv'
@@ -36,7 +37,7 @@ class DataAugment():
                     new_categories.append(category)
                 else:
                     print('sample')
-                    if random.random() > 0.5:
+                    if random.random() >= 0.9:
                         if len(q1) != len(new_q1) and len(q2) != len(new_q2):
                             new_questions1.append(new_q1)
                             new_questions2.append(new_q2)
@@ -63,13 +64,33 @@ class DataAugment():
         df_train[column2] = question1
         return df_train
 
-    def dataAugment(self, df_train, *args):
+    def list_dataframe(self, datalist):
+        question1 = []
+        question2 = []
+        label = []
+        category = []
+        for row in datalist:
+            question1.append(row[0])
+            question2.append(row[1])
+            label.append(row[2])
+            category.append(row[3])
+        return pd.DataFrame({'question1':question1, 'question2':question2, 'label':label, 'category':category})
+
+    def dataframe_list(self, dataframe):
+        data_list = []
+        for idx, row in dataframe.iterrows():
+            row_list = [row['question1'], row['question2'], row['label'], row['category']]
+            data_list.append(row_list)
+        return data_list
+
+    def dataAugment(self, train_list, *args):
         #args:'symmetric'=> symmetric_sentence, 'themword'=>sentences_dropthemword, 'pseudo'=>Pseudolabel
         for arg in args:
             if arg not in ['symmetric', 'themword', 'pseudo']:
                 raise ValueError('the input must choose from [''symmetric', 'themword', 'pseudo'']')
         keywords = ['糖尿病', '高血压', '艾滋病', '乳腺癌', '乙肝']
-        prob = False
+        prob = True
+        df_train = self.list_dataframe(train_list)
         for idx, arg in enumerate(args):
             if arg == 'symmetric':
                 new_data = self.symmetric_sentence(df_train)
@@ -83,15 +104,15 @@ class DataAugment():
                 all_data = new_data
             else:
                 all_data = pd.concat((all_data, new_data), ignore_index=True)
-        all_data.to_csv(self.save_path, index=False)
+
         print('genarate data finished')
-        return None
+        return self.dataframe_list(all_data)
 
 
-#test
-if __name__ == "__main__":
-    path = os.path.join('../try_data/', 'train.csv')
-    train_data = pd.read_csv(path)
-    Augment = DataAugment()
-    print(Augment.dataAugment(train_data, 'themword'))
+# #test
+# if __name__ == "__main__":
+#     try_data = [['艾滋病窗口期会出现腹泻症状吗', '头疼腹泻四肢无力是不是', 0, 'aids'], ['由于引起末梢神经炎，怎么根治？', '末梢神经炎的治疗方法', 1, 'diabetes']]
+#     Augment = DataAugment()
+#     data = Augment.dataAugment(try_data, 'themword')
+
 

@@ -111,15 +111,15 @@ def convert_examples_to_features(
         else:
             label = None
 
-        if index < 3:
-            logger.info("*** Example ***")
-            logger.info("guid: %s" % (index))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("attention_mask: %s" % " ".join([str(x) for x in attention_mask]))
-            logger.info("token_type_ids: %s" % " ".join([str(x) for x in token_type_ids]))
-
-            if example[2] is not None:
-                logger.info("label: %s (id = %d)" % (example[2], label))
+        # if index < 3:
+        #     logger.info("*** Example ***")
+        #     logger.info("guid: %s" % (index))
+        #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+        #     logger.info("attention_mask: %s" % " ".join([str(x) for x in attention_mask]))
+        #     logger.info("token_type_ids: %s" % " ".join([str(x) for x in token_type_ids]))
+        #
+        #     if example[2] is not None:
+        #         logger.info("label: %s (id = %d)" % (example[2], label))
 
         features.append(
             InputFeatures(input_ids, attention_mask, token_type_ids, label)
@@ -169,3 +169,15 @@ def random_seed(seed):
 
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def train_test_split(config, examples):
+
+    config.test_num_examples = int(len(examples) * config.test_split)
+    config.train_num_examples = len(examples) - config.test_num_examples
+    train_data, test_data = Data.random_split(examples, [config.train_num_examples, config.test_num_examples])
+
+    train_examples = [train_data.dataset[idx] for idx in train_data.indices]
+    test_examples = [test_data.dataset[idx] for idx in test_data.indices]
+
+    return train_examples, test_examples
