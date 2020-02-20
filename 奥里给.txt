@@ -25,7 +25,7 @@ baseline:Bert常规
 
 （2）模型设计
         A.端到端：
-            a.常规bert输出
+#            a.常规bert输出
 #            b.使用隐藏层【CLS】加权输入
 #            c.bert最后一层max-pooling和avgpooling拼接输出
             d.在bert输出后拼接特征（尝试选择）
