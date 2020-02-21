@@ -13,9 +13,24 @@ class KFoldDataLoader(object):
     def __init__(self, examples, nums=5):
         self.max_nums = nums
         self.cur_nums = 0
-        self.examples = examples
-        np.random.shuffle(self.examples)
-        self.step = len(self.examples) // nums
+
+        self.examples_key = []  # 'sentences1 ...'
+        self.examples_dict = {}  # 'sentences1: [[], []...]'
+        self.creat_group_dict(examples)
+
+        np.random.shuffle(self.examples_key)
+        self.group_lens = len(self.examples_key)
+        self.step = self.group_lens // nums
+
+    def creat_group_dict(self, examples):
+
+        for example in examples:
+            exists = self.examples_dict.get(example[0], None)
+            if exists is None:
+                self.examples_key.append(example[0])
+                self.examples_dict[example[0]] = [example]
+            else:
+                self.examples_dict[example[0]].append(example)
 
     def __iter__(self):
         return self
@@ -23,15 +38,26 @@ class KFoldDataLoader(object):
     def __next__(self):
         if self.cur_nums < self.max_nums:
             if self.cur_nums == 0:
-                dev_data = self.examples[:self.step]
-                train_data = self.examples[self.step:]
+                dev_key = self.examples_key[:self.step]
+                train_key = self.examples_key[self.step:]
             elif self.cur_nums == self.max_nums - 1:
-                train_data = self.examples[:self.cur_nums * self.step]
-                dev_data = self.examples[self.cur_nums * self.step:]
+                train_key = self.examples_key[:self.cur_nums * self.step]
+                dev_key = self.examples_key[self.cur_nums * self.step:]
             else:
-                train_data = self.examples[:self.cur_nums * self.step] + self.examples[(self.cur_nums + 1) * self.step:]
-                dev_data = self.examples[self.cur_nums * self.step:(self.cur_nums + 1) * self.step]
+                train_key = self.examples_key[:self.cur_nums * self.step] + \
+                             self.examples_key[(self.cur_nums + 1) * self.step:]
+                dev_key = self.examples_key[self.cur_nums * self.step:(self.cur_nums + 1) * self.step]
+
+            train_data = []
+            dev_data = []
+            for train in train_key:
+                train_data.extend(self.examples_dict[train])
+            for dev in dev_key:
+                dev_data.extend(self.examples_dict[dev])
+            np.random.shuffle(train_data)
+            np.random.shuffle(dev_data)
             self.cur_nums += 1
+
             return train_data, dev_data
         else:
             raise StopIteration
@@ -125,3 +151,21 @@ def k_fold_cross_validation(
         logger.info('K models test acc mean: {}'.format(np.array(test_evaluate).mean()))
 
     return dev_evaluate, k_fold_predict_label
+
+
+from processors.TryDataProcessor import TryDataProcessor
+
+if __name__ == '__main__':
+    processor = TryDataProcessor()
+    total_examples = processor.get_train_examples('./real_data')
+    k_fold_loader = KFoldDataLoader(total_examples, nums=2)
+
+    print('total_examples ', len(total_examples))
+
+    for train_data, dev_data in k_fold_loader:
+        print('### train ### ', len(train_data))
+        print(np.array(train_data))
+        print('### dev ### ', len(dev_data))
+        print(np.array(dev_data))
+
+
