@@ -28,7 +28,8 @@ class Bert(nn.Module):
 
         if self.hidden_weight:
             self.weight_layer = config.weighted_layer_num
-            self.weight = Variable(torch.zeros((self.weight_layer)), requires_grad=True).to(config.device)
+            #self.weight = torch.zeros(self.weight_layer).to(config.device)
+            self.weight = torch.nn.Parameter(torch.FloatTensor(self.weight_layer), requires_grad=True)
             self.softmax = nn.Softmax()
             self.pooler = nn.Sequential(nn.Linear(768, 768), nn.Tanh())
 
@@ -50,6 +51,7 @@ class Bert(nn.Module):
         )
         if self.hidden_weight:     #weighted sum [CLS] hidden layer
             all_hidden_state = outputs[2]
+            self.weight.requires_grad = True
             weight = self.softmax(self.weight)
             for i in range(self.weight_layer):
                 if i == 0:

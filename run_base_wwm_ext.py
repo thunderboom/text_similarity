@@ -63,6 +63,12 @@ class NewsConfig:
         # 数据增强
         self.data_augment = True  # 增强数据标签
         self.data_augment_args = 'themword'
+        # 改模型
+        # Bert的后几层加权输出
+        self.weighted_layer_tag = False
+        self.weighted_layer_num = 6
+        # 拼接max_pooling和avg_pooling
+        self.pooling_tag = False
 
 
 def thucNews_task(config):

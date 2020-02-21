@@ -47,7 +47,8 @@ class TryDataProcessor:
         with open(input_file, "r", encoding="utf-8-sig") as f:
             tsv_list = list(csv.reader(f))
             for line in tsv_list[1:]:
-                data_list.append([line[0], line[1], line[2], line[3]])
+                #data_list.append([line[0], line[1], line[2], line[3]])
+                data_list.append([line[1], line[2], line[3], line[0]])
         return data_list
 
 

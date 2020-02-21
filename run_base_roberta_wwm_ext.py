@@ -1,15 +1,12 @@
 import logging
-import os
-import torch
-import torch.utils.data as Data
-from torch.utils.data import DataLoader
 from processors.TryDataProcessor import TryDataProcessor
-from utils import convert_examples_to_features, BuildDataSet, config_to_json_string, random_seed
 from transformers import BertTokenizer
 from models.bert import Bert
-from train_eval import model_train, model_test, model_save, model_load
-import time
-import json
+
+from k_fold import k_fold_cross_validation
+from utils.augment import DataAugment
+from utils.utils import *
+from train_eval import *
 
 
 class NewsConfig:
@@ -24,7 +21,7 @@ class NewsConfig:
         _data_path = '/try_data'
 
         self.models_name = 'base_roberta_wwm_ext'
-        self.task = 'base_try_data'
+        self.task = 'base_real_data'
         self.config_file = os.path.join(absdir + _pretrain_path, _config_file)
         self.model_name_or_path = os.path.join(absdir + _pretrain_path, _model_file)
         self.tokenizer_file = os.path.join(absdir + _pretrain_path, _tokenizer_file)
@@ -45,9 +42,10 @@ class NewsConfig:
         self.num_train_epochs = 8                                                               # epoch数
         self.batch_size = 32                                                                     # mini-batch大小
         self.pad_size = 64                                                                      # 每句话处理成的长度
-        self.learning_rate = 2e-5                                                               # 学习率
+        self.learning_rate = 1e-5                                                               # 学习率
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
+        self.k_fold = 5
         # logging
         self.is_logging2file = True
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
@@ -57,7 +55,15 @@ class NewsConfig:
         self.dev_split = 0.1
         self.test_split = 0.1
         self.seed = 369
-
+        # 增强数据
+        self.data_augment = False
+        self.data_augment_args = 'themword'
+        #改模型
+        #Bert的后几层加权输出
+        self.weighted_layer_tag = False
+        self.weighted_layer_num = 6
+        #拼接max_pooling和avg_pooling
+        self.pooling_tag = False
 
 def thucNews_task(config):
 
@@ -73,36 +79,20 @@ def thucNews_task(config):
     config.num_labels = len(config.class_list)
 
     total_examples = processor.get_train_examples(config.data_dir)
-    total_features = convert_examples_to_features(
-        total_examples,
-        tokenizer,
-        config.class_list,
-        config.pad_size
-    )
-    config.dev_num_examples = int(len(total_features) * config.dev_split)
-    config.test_num_examples = int(len(total_features) * config.test_split)
-    config.train_num_examples = len(total_features) - config.dev_num_examples - config.test_num_examples
-    train_data, dev_data, test_data = Data.random_split(
-        total_features, [config.train_num_examples, config.dev_num_examples, config.test_num_examples])
+    # 划分训练集（做K折）和测试集
+    train_examples, test_examples = train_test_split(config, total_examples)
 
-    train_features = [train_data.dataset[idx] for idx in train_data.indices]
-    dev_features = [dev_data.dataset[idx] for idx in dev_data.indices]
-    test_features = [test_data.dataset[idx] for idx in test_data.indices]
-
-    train_dataset = BuildDataSet(train_features)
-    train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    dev_dataset = BuildDataSet(dev_features)
-    dev_loader = DataLoader(dev_dataset, batch_size=config.batch_size, shuffle=True)
-    test_dataset = BuildDataSet(test_features)
-    test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True)
-    #
     logging.info("self config %s", config_to_json_string(config))
-    bert_model = Bert(config).to(config.device)
+
+    model = Bert(config)
     if config.load_save_model:
-        model_load(config, bert_model)
-    model_train(config, bert_model, train_loader, dev_loader)
-    model_test(config, bert_model, test_loader)
-    model_save(config, bert_model)
+        model_load(config, model, device='cpu')
+
+    dev_ev, predict = k_fold_cross_validation(
+        config, train_examples, model, tokenizer,
+        train_enhancement=DataAugment().dataAugment if config.data_augment else None,
+        enhancement_arg=config.data_augment_args,
+        test_examples=test_examples)
 
 
 if __name__ == '__main__':
@@ -118,5 +108,4 @@ if __name__ == '__main__':
     logging.basicConfig(filename=logging_filename, format='%(levelname)s: %(message)s', level=logging.INFO)
 
     thucNews_task(config)
-
 
