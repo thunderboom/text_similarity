@@ -62,10 +62,10 @@ def model_train(config, model, train_iter, dev_iter):
             token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
             labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
 
-            outputs = model(input_ids, attention_mask, token_type_ids)
+            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, 4)
 
             model.zero_grad()
-            loss = F.cross_entropy(outputs, labels_tensor)
+            #loss = F.cross_entropy(outputs, labels_tensor)
             loss.backward()
             optimizer.step()
             scheduler.step()  # Update learning rate schedule
@@ -113,8 +113,8 @@ def model_evaluate(config, model, data_iter, test=False):
             token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
             labels = torch.tensor(labels).type(torch.LongTensor).to(config.device)
 
-            outputs = model(input_ids, attention_mask, token_type_ids)
-            loss = F.cross_entropy(outputs, labels)
+            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels, 1)
+            #loss = F.cross_entropy(outputs, labels)
             loss_total += loss
             labels = labels.data.cpu().numpy()
             predic = torch.max(outputs.data, 1)[1].cpu().numpy()

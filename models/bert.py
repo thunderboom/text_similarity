@@ -43,6 +43,8 @@ class Bert(nn.Module):
             input_ids=None,
             attention_mask=None,
             token_type_ids=None,
+            labels = None,
+            n = 1
     ):
         outputs = self.bert(
             input_ids,
@@ -68,9 +70,17 @@ class Bert(nn.Module):
             max_pooling = self.maxPooling(last_hidden).squeeze()
             pooling_output = torch.cat((tag_output, avg_pooling, max_pooling), dim=1)
             pooled_output = self.pooler(pooling_output)
-
         else:
             pooled_output = outputs[1]
-        pooled_output = self.dropout(pooled_output)
-        out = self.classifier(pooled_output)
-        return out
+        for i in range(n):
+            pooled_output = self.dropout(pooled_output)
+            out = self.classifier(pooled_output)
+            if i == 0:
+                loss = self.compute_loss(out, labels) / n
+            else:
+                loss += loss / n
+        return out, loss
+
+    def compute_loss(self, outputs, labels):
+        loss = F.cross_entropy(outputs, labels)
+        return loss

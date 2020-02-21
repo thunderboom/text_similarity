@@ -17,10 +17,10 @@ class NewsConfig:
         _config_file = 'config.json'
         _model_file = 'pytorch_model.bin'
         _tokenizer_file = 'vocab.txt'
-        _data_path = '/try_data'
+        _data_path = '/real_data'
 
         self.models_name = 'base_bert'
-        self.task = 'base_try_data'
+        self.task = 'base_real_data'
         self.config_file = os.path.join(absdir + _pretrain_path, _config_file)
         self.model_name_or_path = os.path.join(absdir + _pretrain_path, _model_file)
         self.tokenizer_file = os.path.join(absdir + _pretrain_path, _tokenizer_file)
@@ -41,7 +41,7 @@ class NewsConfig:
         self.num_train_epochs = 8                                                               # epoch数
         self.batch_size = 32                                                                     # mini-batch大小
         self.pad_size = 64                                                                      # 每句话处理成的长度
-        self.learning_rate = 1e-5                                                               # 学习率
+        self.learning_rate = 2e-5                                                               # 学习率
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
         self.k_fold = 5
