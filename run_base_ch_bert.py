@@ -46,7 +46,7 @@ class NewsConfig:
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
         self.k_fold = 8
         # logging
-        self.is_logging2file = False
+        self.is_logging2file = True
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
         # save
         self.load_save_model = False
