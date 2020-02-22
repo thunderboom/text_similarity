@@ -181,7 +181,7 @@ def cross_validation(
             train_enhancement=train_enhancement,
             enhancement_arg=enhancement_arg
         )
-        return dev_evaluate, _
+        return dev_evaluate, None
     else:
         dev_acc, predict_label = train_dev_test(config, train_examples, dev_examples,
                        model, tokenizer, train_enhancement,
