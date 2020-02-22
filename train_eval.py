@@ -111,21 +111,25 @@ def model_evaluate(config, model, data_iter, test=False):
             input_ids = torch.tensor(input_ids).type(torch.LongTensor).to(config.device)
             attention_mask = torch.tensor(attention_mask).type(torch.LongTensor).to(config.device)
             token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
-            labels = torch.tensor(labels).type(torch.LongTensor).to(config.device)
+
+            if test:
+                labels = None
+            else:
+                labels = torch.tensor(labels).type(torch.LongTensor).to(config.device)
 
             outputs, loss = model(input_ids, attention_mask, token_type_ids, labels, 1)
-            #loss = F.cross_entropy(outputs, labels)
-            loss_total += loss
-            labels = labels.data.cpu().numpy()
+            # loss = F.cross_entropy(outputs, labels)
+            if not test:
+                labels = labels.data.cpu().numpy()
+                labels_all = np.append(labels_all, labels)
+                loss_total += loss
+
             predic = torch.max(outputs.data, 1)[1].cpu().numpy()
-            labels_all = np.append(labels_all, labels)
             predict_all = np.append(predict_all, predic)
 
-    acc = metrics.accuracy_score(labels_all, predict_all)
     if test:
-        report = metrics.classification_report(labels_all, predict_all, target_names=config.class_list, digits=4)
-        confusion = metrics.confusion_matrix(labels_all, predict_all)
-        return acc, loss_total / len(data_iter), report, confusion, predict_all
+        return list(predict_all)
+    acc = metrics.accuracy_score(labels_all, predict_all)
     return acc, loss_total / len(data_iter)
 
 

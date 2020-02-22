@@ -3,7 +3,7 @@ from processors.TryDataProcessor import TryDataProcessor
 from transformers import BertTokenizer
 from models.bert import Bert
 
-from k_fold import k_fold_cross_validation
+from k_fold import cross_validation
 from utils.augment import DataAugment
 from utils.utils import *
 from train_eval import *
@@ -37,16 +37,16 @@ class NewsConfig:
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
         self.hidden_size = 768
-        self.require_improvement = 1000                                                         # 若超过1000batch效果还没提升，则提前结束训练
+        self.require_improvement = 600                                                         # 若超过1000batch效果还没提升，则提前结束训练
         self.num_train_epochs = 8                                                               # epoch数
         self.batch_size = 32                                                                     # mini-batch大小
         self.pad_size = 64                                                                      # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
-        self.k_fold = 5
+        self.k_fold = 8
         # logging
-        self.is_logging2file = True
+        self.is_logging2file = False
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
         # save
         self.load_save_model = False
@@ -56,11 +56,10 @@ class NewsConfig:
         self.seed = 369
         # 增强数据
         self.data_augment = False
-        self.data_augment_args = 'themword'
-        #改模型
+        self.data_augment_args = 'sameword'
         #Bert的后几层加权输出
         self.weighted_layer_tag = False
-        self.weighted_layer_num = 6
+        self.weighted_layer_num = 3
         #拼接max_pooling和avg_pooling
         self.pooling_tag = False
 
@@ -77,21 +76,22 @@ def thucNews_task(config):
     config.class_list = processor.get_labels()
     config.num_labels = len(config.class_list)
 
-    total_examples = processor.get_train_examples(config.data_dir)
-    # 划分训练集（做K折）和测试集
-    train_examples, test_examples = train_test_split(config, total_examples)
-
-    logging.info("self config %s", config_to_json_string(config))
+    train_examples = processor.get_train_examples(config.data_dir)
+    dev_examples = processor.get_dev_examples(config.data_dir)
+    # test_examples = processor.get_test_examples(config.data_dir)
+    test_examples = None
 
     model = Bert(config)
     if config.load_save_model:
         model_load(config, model, device='cpu')
 
-    dev_ev, predict = k_fold_cross_validation(
-        config, train_examples, model, tokenizer,
+    dev_evaluate, predict_label = cross_validation(
+        config, train_examples, dev_examples,
+        model, tokenizer, pattern='k-fold',
         train_enhancement=DataAugment().dataAugment if config.data_augment else None,
         enhancement_arg=config.data_augment_args,
         test_examples=test_examples)
+    logging.info(dev_evaluate)
 
 
 if __name__ == '__main__':

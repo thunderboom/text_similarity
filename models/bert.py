@@ -72,13 +72,17 @@ class Bert(nn.Module):
             pooled_output = self.pooler(pooling_output)
         else:
             pooled_output = outputs[1]
+
+        out = None
+        loss = 0
         for i in range(n):
             pooled_output = self.dropout(pooled_output)
             out = self.classifier(pooled_output)
-            if i == 0:
-                loss = self.compute_loss(out, labels) / n
-            else:
-                loss += loss / n
+            if labels is not None:
+                if i == 0:
+                    loss = self.compute_loss(out, labels) / n
+                else:
+                    loss += loss / n
         return out, loss
 
     def compute_loss(self, outputs, labels):
