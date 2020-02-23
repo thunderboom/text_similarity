@@ -7,6 +7,13 @@ from train_eval import *
 
 logger = logging.getLogger(__name__)
 
+MODEL_CLASSES = {
+   'bert':  (convert_examples_to_features, BuildDataSet,
+             model_train, model_evaluate),
+   'bert_sentence': (convert_examples_to_features_sentence,
+                     BuildDataSetSentence, model_train_sentence, model_evaluate_sentence),
+}
+
 
 class KFoldDataLoader(object):
 
@@ -88,38 +95,42 @@ def train_dev_test(
     config.dev_num_examples = len(dev_data)
 
     # 特征转化
-    train_features = convert_examples_to_features(
+    convert_to_features, build_data_set, train_module, evaluate_module = MODEL_CLASSES[config.use_model]
+    train_features = convert_to_features(
         train_data,
         tokenizer,
         config.class_list,
-        config.pad_size
+        config.pad_size,
+        data_type='train'
     )
-    dev_features = convert_examples_to_features(
+    dev_features = convert_to_features(
         dev_data,
         tokenizer,
         config.class_list,
-        config.pad_size
+        config.pad_size,
+        data_type='dev'
     )
 
-    train_dataset = BuildDataSet(train_features)
+    train_dataset = build_data_set(train_features)
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    dev_dataset = BuildDataSet(dev_features)
+    dev_dataset = build_data_set(dev_features)
     dev_loader = DataLoader(dev_dataset, batch_size=config.batch_size, shuffle=True)
 
-    model_train(config, model_example, train_loader, dev_loader)
-    dev_acc, dev_loss = model_evaluate(config, model_example, dev_loader)
+    train_module(config, model_example, train_loader, dev_loader)
+    dev_acc, dev_loss = evaluate_module(config, model_example, dev_loader)
     logger.info('evaluate: acc: {0:>6.2%}, loss: {1:>.6f}'.format(dev_acc, dev_loss))
 
     if test_examples:
-        test_features = convert_examples_to_features(
+        test_features = convert_to_features(
             test_examples,
             tokenizer,
             config.class_list,
-            config.pad_size
+            config.pad_size,
+            data_type='test'
         )
-        test_dataset = BuildDataSet(test_features)
+        test_dataset = build_data_set(test_features)
         test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
-        predict_label = model_evaluate(config, model_example, test_loader, test=True)
+        predict_label = evaluate_module(config, model_example, test_loader, test=True)
         logger.info(predict_label)
 
     if config.device.type == 'gpu':
