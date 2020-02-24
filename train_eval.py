@@ -60,17 +60,19 @@ def model_train(config, model, train_iter, dev_iter):
             input_ids = torch.tensor(input_ids).type(torch.LongTensor).to(config.device)
             attention_mask = torch.tensor(attention_mask).type(torch.LongTensor).to(config.device)
             token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
-            labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
+            if config.loss_method == 'binary':
+                labels_tensor = torch.tensor(labels).type(torch.FloatTensor).to(config.device)
+            else:
+                labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
 
             outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, 4)
 
             model.zero_grad()
-            #loss = F.cross_entropy(outputs, labels_tensor)
             loss.backward()
             optimizer.step()
             scheduler.step()  # Update learning rate schedule
 
-            predic = torch.max(outputs.data, 1)[1].cpu().tolist()
+            predic = list(np.array(outputs.cpu().detach().numpy() >= 0.50, dtype='int'))
             labels_all.extend(labels)
             predict_all.extend(predic)
 
@@ -154,19 +156,21 @@ def model_train_sentence(config, model, train_iter, dev_iter):
             attention_mask_2 = torch.tensor(attention_mask_2).type(torch.LongTensor).to(config.device)
             token_type_ids_2 = torch.tensor(token_type_ids_2).type(torch.LongTensor).to(config.device)
 
-            labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
+            if config.loss_method == 'binary':
+                labels_tensor = torch.tensor(labels).type(torch.FloatTensor).to(config.device)
+            else:
+                labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
 
             outputs, loss = model(input_ids_1, attention_mask_1, token_type_ids_1,
                                   input_ids_2, attention_mask_2, token_type_ids_2,
-                                  labels_tensor, 4)
+                                  labels_tensor, 1)
 
             model.zero_grad()
-            #loss = F.cross_entropy(outputs, labels_tensor)
             loss.backward()
             optimizer.step()
             scheduler.step()  # Update learning rate schedule
 
-            predic = torch.max(outputs.data, 1)[1].cpu().tolist()
+            predic = list(np.array(outputs.cpu().detach().numpy() >= 0.5, dtype='int'))
             labels_all.extend(labels)
             predict_all.extend(predic)
 
@@ -207,16 +211,20 @@ def model_evaluate(config, model, data_iter, test=False):
             input_ids = torch.tensor(input_ids).type(torch.LongTensor).to(config.device)
             attention_mask = torch.tensor(attention_mask).type(torch.LongTensor).to(config.device)
             token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
-            labels = torch.tensor(labels).type(torch.LongTensor).to(config.device) if not test else None
+
+            if config.loss_method == 'binary':
+                labels = torch.tensor(labels).type(torch.FloatTensor).to(config.device) if not test else None
+            else:
+                labels = torch.tensor(labels).type(torch.LongTensor).to(config.device) if not test else None
 
             outputs, loss = model(input_ids, attention_mask, token_type_ids, labels, 1)
-            # loss = F.cross_entropy(outputs, labels)
+
             if not test:
                 labels = labels.data.cpu().numpy()
                 labels_all = np.append(labels_all, labels)
                 loss_total += loss
 
-            predic = torch.max(outputs.data, 1)[1].cpu().numpy()
+            predic = np.array(outputs.cpu().detach().numpy() >= 0.5, dtype='int')
             predict_all = np.append(predict_all, predic)
 
     if test:
@@ -243,19 +251,21 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
             attention_mask_2 = torch.tensor(attention_mask_2).type(torch.LongTensor).to(config.device)
             token_type_ids_2 = torch.tensor(token_type_ids_2).type(torch.LongTensor).to(config.device)
 
-            labels = torch.tensor(labels).type(torch.LongTensor).to(config.device) if not test else None
+            if config.loss_method == 'binary':
+                labels = torch.tensor(labels).type(torch.FloatTensor).to(config.device) if not test else None
+            else:
+                labels = torch.tensor(labels).type(torch.LongTensor).to(config.device) if not test else None
 
             outputs, loss = model(input_ids_1, attention_mask_1, token_type_ids_1,
                                   input_ids_2, attention_mask_2, token_type_ids_2,
                                   labels, 1)
 
-            # loss = F.cross_entropy(outputs, labels)
             if not test:
                 labels = labels.data.cpu().numpy()
                 labels_all = np.append(labels_all, labels)
                 loss_total += loss
 
-            predic = torch.max(outputs.data, 1)[1].cpu().numpy()
+            predic = np.array(outputs.cpu().detach().numpy() >= 0.5, dtype='int')
             predict_all = np.append(predict_all, predic)
 
     if test:

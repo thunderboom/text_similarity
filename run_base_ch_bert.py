@@ -27,7 +27,7 @@ class NewsConfig:
         # 使用的模型
         self.use_model = 'bert'
 
-        self.models_name = 'base_bert'
+        self.models_name = 'base_' + self.use_model
         self.task = 'base_real_data'
         self.config_file = os.path.join(absdir + _pretrain_path, _config_file)
         self.model_name_or_path = os.path.join(absdir + _pretrain_path, _model_file)
@@ -39,7 +39,7 @@ class NewsConfig:
         self.label_on_test_set = True
         self.requires_grad = True
         self.class_list = []
-        self.num_labels = 2
+        self.num_labels = 3
         self.train_num_examples = 0
         self.dev_num_examples = 0
         self.test_num_examples = 0
@@ -70,6 +70,8 @@ class NewsConfig:
         self.weighted_layer_num = 3
         # 拼接max_pooling和avg_pooling
         self.pooling_tag = False
+        # 计算loss的方法
+        self.loss_method = 'binary'  # [ binary, cross_entropy]
 
 
 def thucNews_task(config):
