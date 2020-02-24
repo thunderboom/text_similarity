@@ -1,25 +1,25 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import BertConfig, BertModel
+from transformers import AlbertConfig, AlbertModel
 from torch.autograd import Variable
 
 
-class Bert(nn.Module):
+class AlBert(nn.Module):
 
     def __init__(self, config):
-        super(Bert, self).__init__()
-        model_config = BertConfig.from_pretrained(
+        super(AlBert, self).__init__()
+        model_config = AlbertConfig.from_pretrained(
             config.config_file,
             num_labels=config.num_labels,
             finetuning_task=config.task,
         )
-        self.bert = BertModel.from_pretrained(
+        self.albert = AlbertModel.from_pretrained(
             config.model_name_or_path,
             config=model_config,
         )
         if config.requires_grad:
-            for param in self.bert.parameters():
+            for param in self.albert.parameters():
                 param.requires_grad = True
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
@@ -47,7 +47,7 @@ class Bert(nn.Module):
             labels = None,
             n = 1
     ):
-        outputs = self.bert(
+        outputs = self.albert(
             input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
@@ -73,71 +73,6 @@ class Bert(nn.Module):
             pooled_output = self.pooler(pooling_output)
         else:
             pooled_output = outputs[1]
-
-        out = None
-        loss = 0
-        for i in range(n):
-            pooled_output = self.dropout(pooled_output)
-            out = self.classifier(pooled_output)
-            if labels is not None:
-                if i == 0:
-                    loss = self.compute_loss(out, labels) / n
-                else:
-                    loss += loss / n
-        return out, loss
-
-    def compute_loss(self, outputs, labels):
-        loss = F.cross_entropy(outputs, labels)
-        return loss
-
-
-class BertSentence(nn.Module):
-
-    def __init__(self, config):
-        super(BertSentence, self).__init__()
-        model_config = BertConfig.from_pretrained(
-            config.config_file,
-            num_labels=config.num_labels,
-            finetuning_task=config.task,
-        )
-        self.bert = BertModel.from_pretrained(
-            config.model_name_or_path,
-            config=model_config,
-        )
-        if config.requires_grad:
-            for param in self.bert.parameters():
-                param.requires_grad = True
-        self.pooler = nn.Sequential(nn.Linear(config.hidden_size*2, config.hidden_size), nn.Tanh())
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
-
-    def forward(
-            self,
-            q1_input_ids=None,
-            q1_attention_mask=None,
-            q1_token_type_ids=None,
-            q2_input_ids=None,
-            q2_attention_mask=None,
-            q2_token_type_ids=None,
-            labels = None,
-            n = 1
-    ):
-        outputs1 = self.bert(
-            q1_input_ids,
-            attention_mask=q1_attention_mask,
-            token_type_ids=q1_token_type_ids,
-        )
-        outputs2 = self.bert(
-            q2_input_ids,
-            attention_mask=q2_attention_mask,
-            token_type_ids=q2_token_type_ids,
-        )
-        q1_hidden = outputs1[0][:, 0, :]
-        q2_hidden = outputs2[0][:, 0, :]
-        # easy concat
-        query_hidden = torch.cat((q1_hidden, q2_hidden), dim=1)
-        # classfier
-        pooled_output = self.pooler(query_hidden)
 
         out = None
         loss = 0

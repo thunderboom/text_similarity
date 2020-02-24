@@ -74,6 +74,32 @@ class InputFeatures(object):
         return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
 
 
+# 单句特征存储单元
+class InputFeaturesSentence(object):
+
+    def __init__(self, input_ids_1=None, attention_mask_1=None, token_type_ids_1=None, input_ids_2=None,
+                 attention_mask_2=None, token_type_ids_2=None, label=None):
+        self.input_ids_1 = input_ids_1
+        self.attention_mask_1 = attention_mask_1
+        self.token_type_ids_1 = token_type_ids_1
+        self.input_ids_2 = input_ids_2
+        self.attention_mask_2 = attention_mask_2
+        self.token_type_ids_2 = token_type_ids_2
+        self.label = label
+
+    def __repr__(self):
+        return str(self.to_json_string())
+
+    def to_dict(self):
+        """Serializes this instance to a Python dictionary."""
+        output = copy.deepcopy(self.__dict__)
+        return output
+
+    def to_json_string(self):
+        """Serializes this instance to a JSON string."""
+        return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
+
+
 def convert_examples_to_features(
     examples,
     tokenizer,
@@ -81,6 +107,7 @@ def convert_examples_to_features(
     max_length=512,
     pad_token=0,
     pad_token_segment_id=0,
+    data_type=None,
 ):
     """
     :param examples: List [ sentences1,sentences2,label, category]
@@ -109,7 +136,7 @@ def convert_examples_to_features(
         if example[2] is not None:
             label = label_map[example[2]]
         else:
-            label = None
+            label = 0
 
         # if index < 3:
         #     logger.info("*** Example ***")
@@ -143,6 +170,102 @@ class BuildDataSet(Data.Dataset):
         label = np.array(feature.label)
 
         return input_ids, attention_mask, token_type_ids, label
+
+    def __len__(self):
+        return len(self.features)
+
+
+# 单句特征
+def convert_examples_to_features_sentence(
+    examples,
+    tokenizer,
+    label_list,
+    max_length=512,
+    pad_token=0,
+    pad_token_segment_id=0,
+    data_type=None,
+):
+    """
+    :param examples: List [ sentences1,sentences2,label, category]
+    :param tokenizer: Instance of a tokenizer that will tokenize the examples
+    :param label_list: List of labels.
+    :param max_length: Maximum example length
+    :param pad_token: 0
+    :param pad_token_segment_id: 0
+    :return: [(example.guid, input_ids, attention_mask, token_type_ids, label), ......]
+    """
+    label_map = {label: i for i, label in enumerate(label_list)}
+
+    features = []
+    for (index, example) in enumerate(examples):
+
+        if data_type == 'train' and np.random.random() < 0.5:
+            example[0], example[1] = example[1], example[0]
+
+        inputs_1 = tokenizer.encode_plus(example[0], add_special_tokens=True, max_length=max_length)
+        input_ids_1, token_type_ids_1 = inputs_1["input_ids"], inputs_1["token_type_ids"]
+        attention_mask_1 = [1] * len(input_ids_1)
+
+        inputs_2 = tokenizer.encode_plus(example[1], add_special_tokens=True, max_length=max_length)
+        input_ids_2, token_type_ids_2 = inputs_2["input_ids"], inputs_2["token_type_ids"]
+        attention_mask_2 = [1] * len(input_ids_2)
+
+        # Zero-pad up to the sequence length.
+        padding_length_1 = max_length - len(input_ids_1)
+        input_ids_1 = input_ids_1 + ([pad_token] * padding_length_1)
+        attention_mask_1 = attention_mask_1 + ([0] * padding_length_1)
+        token_type_ids_1 = token_type_ids_1 + ([pad_token_segment_id] * padding_length_1)
+
+        padding_length_2 = max_length - len(input_ids_2)
+        input_ids_2 = input_ids_2 + ([pad_token] * padding_length_2)
+        attention_mask_2 = attention_mask_2 + ([0] * padding_length_2)
+        token_type_ids_2 = token_type_ids_2 + ([pad_token_segment_id] * padding_length_2)
+
+        if example[2] is not None:
+            label = label_map[example[2]]
+        else:
+            label = 0
+
+        # if index < 3:
+        #     logger.info("*** Example ***")
+        #     logger.info("guid: %s" % (index))
+        #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+        #     logger.info("attention_mask: %s" % " ".join([str(x) for x in attention_mask]))
+        #     logger.info("token_type_ids: %s" % " ".join([str(x) for x in token_type_ids]))
+        #
+        #     if example[2] is not None:
+        #         logger.info("label: %s (id = %d)" % (example[2], label))
+
+        features.append(
+            InputFeaturesSentence(input_ids_1, attention_mask_1, token_type_ids_1,
+                                  input_ids_2,  attention_mask_2, token_type_ids_2, label)
+        )
+
+    return features
+
+
+class BuildDataSetSentence(Data.Dataset):
+    """
+    convert_examples_to_features_sentence 包装成 Dataset
+    """
+    def __init__(self, features):
+        self.features = features
+
+    def __getitem__(self, index):
+        feature = self.features[index]
+
+        input_ids_1 = np.array(feature.input_ids_1)
+        attention_mask_1 = np.array(feature.attention_mask_1)
+        token_type_ids_1 = np.array(feature.token_type_ids_1)
+
+        input_ids_2 = np.array(feature.input_ids_2)
+        attention_mask_2 = np.array(feature.attention_mask_2)
+        token_type_ids_2 = np.array(feature.token_type_ids_2)
+
+        label = np.array(feature.label)
+
+        return input_ids_1, attention_mask_1, token_type_ids_1, \
+               input_ids_2, attention_mask_2, token_type_ids_2, label
 
     def __len__(self):
         return len(self.features)

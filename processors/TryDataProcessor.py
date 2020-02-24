@@ -14,16 +14,11 @@ class TryDataProcessor:
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        return []
+        return self._read_csv(os.path.join(data_dir, "dev.csv"))
 
     def get_test_examples(self, data_dir):
         """See base class."""
-        return []
-
-    def get_augment_examples(self, data_dir):
-        """See base class."""
-        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "augment.csv")))
-        return self._read_csv(os.path.join(data_dir, "augment.csv"))
+        return self._read_csv(os.path.join(data_dir, "test.csv"))
 
     def get_all_examples(self, data_dir):
         """See base class."""
@@ -44,11 +39,15 @@ class TryDataProcessor:
                 if not sentences2, set None. the others same.
         """
         data_list = []
-        with open(input_file, "r", encoding="utf-8-sig") as f:
-            tsv_list = list(csv.reader(f))
+        is_test = True if 'test' in input_file else False
+        with open(input_file, "r", encoding="utf-8") as f:
+            tsv_list = list(csv.reader(f, delimiter=','))
             for line in tsv_list[1:]:
+                if is_test:
+                    data_list.append([line[1], line[2], '0', line[0]])
+                else:
+                    data_list.append([line[1], line[2], line[3], line[0]])
                 #data_list.append([line[0], line[1], line[2], line[3]])
-                data_list.append([line[1], line[2], line[3], line[0]])
         return data_list
 
 
