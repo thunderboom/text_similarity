@@ -4,17 +4,15 @@ import copy
 import logging
 import numpy as np
 import torch
-import torch.nn.functional as F
 from sklearn import metrics
 import time
-from tensorboardX import SummaryWriter
 
 from transformers import AdamW, get_linear_schedule_with_warmup
 
 logger = logging.getLogger(__name__)
 
 
-def model_train(config, model, train_iter, dev_iter):
+def model_train(config, model, train_iter, dev_iter=None):
     start_time = time.time()
 
     # Prepare optimizer and schedule (linear warmup and decay)
@@ -66,7 +64,7 @@ def model_train(config, model, train_iter, dev_iter):
             else:
                 labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
 
-            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, 1)
+            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, 4)
 
             model.zero_grad()
             loss.backward()
@@ -82,14 +80,20 @@ def model_train(config, model, train_iter, dev_iter):
                 train_acc = metrics.accuracy_score(labels_all, predict_all)
                 predict_all = []
                 labels_all = []
-                dev_acc, dev_loss, _ = model_evaluate(config, model, dev_iter)
 
-                if dev_loss < dev_best_loss:
-                    dev_best_loss = dev_loss
-                    improve = '*'
-                    last_improve = global_batch
-                else:
-                    improve = ''
+                # dev 数据
+                dev_acc, dev_loss = 0, 0
+                improve = ''
+                if dev_iter is not None:
+                    dev_acc, dev_loss, _ = model_evaluate(config, model, dev_iter)
+
+                    if dev_loss < dev_best_loss:
+                        dev_best_loss = dev_loss
+                        improve = '*'
+                        last_improve = global_batch
+                    else:
+                        improve = ''
+
                 time_dif = time.time() - start_time
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'
                 logger.info(msg.format(global_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
@@ -103,7 +107,7 @@ def model_train(config, model, train_iter, dev_iter):
             break
 
 
-def model_train_sentence(config, model, train_iter, dev_iter):
+def model_train_sentence(config, model, train_iter, dev_iter=None):
     start_time = time.time()
 
     # Prepare optimizer and schedule (linear warmup and decay)
@@ -180,14 +184,20 @@ def model_train_sentence(config, model, train_iter, dev_iter):
                 train_acc = metrics.accuracy_score(labels_all, predict_all)
                 predict_all = []
                 labels_all = []
-                dev_acc, dev_loss, _ = model_evaluate_sentence(config, model, dev_iter)
 
-                if dev_loss < dev_best_loss:
-                    dev_best_loss = dev_loss
-                    improve = '*'
-                    last_improve = global_batch
-                else:
-                    improve = ''
+                # dev 数据
+                dev_acc, dev_loss = 0, 0
+                improve = ''
+                if dev_iter is not None:
+                    dev_acc, dev_loss, _ = model_evaluate_sentence(config, model, dev_iter)
+
+                    if dev_loss < dev_best_loss:
+                        dev_best_loss = dev_loss
+                        improve = '*'
+                        last_improve = global_batch
+                    else:
+                        improve = ''
+
                 time_dif = time.time() - start_time
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'
                 logger.info(msg.format(global_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))

@@ -71,13 +71,14 @@ class KFoldDataLoader(object):
 def train_dev_test(
     config,
     train_data,
-    dev_data,
     model,
     tokenizer,
     train_enhancement=None,
     enhancement_arg=None,
+    dev_data=None,
     test_examples=None,
 ):
+    dev_acc = 0.
     predict_label = []
 
     # 加载模型
@@ -90,8 +91,6 @@ def train_dev_test(
         train_data.extend(ext_data)
 
     config.train_num_examples = len(train_data)
-    config.dev_num_examples = len(dev_data)
-
     # 特征转化
     convert_to_features, build_data_set, train_module, evaluate_module = MODEL_CLASSES[config.use_model]
     train_features = convert_to_features(
@@ -101,29 +100,37 @@ def train_dev_test(
         config.pad_size,
         data_type='train'
     )
-    dev_features = convert_to_features(
-        dev_data,
-        tokenizer,
-        config.class_list,
-        config.pad_size,
-        data_type='dev'
-    )
-
     train_dataset = build_data_set(train_features)
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    dev_dataset = build_data_set(dev_features)
-    dev_loader = DataLoader(dev_dataset, batch_size=config.batch_size, shuffle=True)
+
+    # dev 数据加载与转换
+    if dev_data is not None:
+        config.dev_num_examples = len(dev_data)
+        dev_features = convert_to_features(
+            dev_data,
+            tokenizer,
+            config.class_list,
+            config.pad_size,
+            data_type='dev'
+        )
+        dev_dataset = build_data_set(dev_features)
+        dev_loader = DataLoader(dev_dataset, batch_size=config.batch_size, shuffle=True)
+    else:
+        dev_loader = None
 
     train_module(config, model_example, train_loader, dev_loader)
-    dev_acc, dev_loss, total_inputs_err = evaluate_module(config, model_example, dev_loader)
-    logger.info('evaluate: acc: {0:>6.2%}, loss: {1:>.6f}'.format(dev_acc, dev_loss))
-    logger.info('classify error sentences:')
-    for idx, error_dict in enumerate(total_inputs_err):
-        tokens = tokenizer.convert_ids_to_tokens(error_dict['sentence_ids'], skip_special_tokens=True)
-        logger.info('## idx: {}'.format(idx+1))
-        logger.info('sentences: {}.'.format(''.join(x for x in tokens)))
-        logger.info('true label: {}'.format(error_dict['true_label']))
-        logger.info('proba: {}'.format(error_dict['proba']))
+
+    if dev_data is not None:
+        dev_acc, dev_loss, total_inputs_err = evaluate_module(config, model_example, dev_loader)
+        logger.info('classify error sentences:')
+        for idx, error_dict in enumerate(total_inputs_err):
+            tokens = tokenizer.convert_ids_to_tokens(error_dict['sentence_ids'], skip_special_tokens=True)
+            logger.info('## idx: {}'.format(idx+1))
+            logger.info('sentences: {}.'.format(''.join(x for x in tokens)))
+            logger.info('true label: {}'.format(error_dict['true_label']))
+            logger.info('proba: {}'.format(error_dict['proba']))
+
+        logger.info('evaluate: acc: {0:>6.2%}, loss: {1:>.6f}'.format(dev_acc, dev_loss))
 
     if test_examples:
         test_features = convert_to_features(
@@ -138,12 +145,7 @@ def train_dev_test(
         predict_label = evaluate_module(config, model_example, test_loader, test=True)
         logger.info(predict_label)
 
-    if config.device.type == 'gpu':
-        torch.cuda.empty_cache()
-    else:
-        del model_example
-
-    return dev_acc, predict_label
+    return model_example, dev_acc, predict_label
 
 
 def k_fold_cross_validation(
@@ -170,8 +172,13 @@ def k_fold_cross_validation(
     for train_data, dev_data in k_fold_loader:
         idx += 1
         logger.info('k-fold CrossValidation: # %d', idx)
-        dev_acc, _ = train_dev_test(config, train_data,dev_data, model, tokenizer,
+        _, dev_acc, _ = train_dev_test(config, train_data,dev_data, model, tokenizer,
                        train_enhancement, enhancement_arg)
+
+        # 清理显存
+        if config.device.type == 'gpu':
+            torch.cuda.empty_cache()
+
         dev_evaluate.append(dev_acc)
 
     logger.info('K({}) models dev acc mean: {}'.format(idx, np.array(dev_evaluate).mean()))
@@ -197,12 +204,31 @@ def cross_validation(
             train_enhancement=train_enhancement,
             enhancement_arg=enhancement_arg
         )
-        return dev_evaluate, None
-    else:
-        dev_acc, predict_label = train_dev_test(config, train_examples, dev_examples,
-                       model, tokenizer, train_enhancement,
-                       enhancement_arg, test_examples)
-        return dev_acc, predict_label
+        return None, dev_evaluate, None
+    elif pattern == 'full-train':
+        train_examples.extend(dev_examples)
+        np.random.shuffle(train_examples)
+        model_example, _, _ = train_dev_test(
+            config=config,
+            train_data=train_examples,
+            model=model,
+            tokenizer=tokenizer,
+            train_enhancement=train_enhancement,
+            enhancement_arg=enhancement_arg,
+            dev_data=None,
+            test_examples=test_examples)
+        return model_example, None, None
+    elif pattern == 'predict':
+        model_example, dev_acc, predict_label = train_dev_test(
+            config=config,
+            train_data=train_examples,
+            model=model,
+            tokenizer=tokenizer,
+            train_enhancement=train_enhancement,
+            enhancement_arg=enhancement_arg,
+            dev_data=dev_examples,
+            test_examples=test_examples)
+        return model_example, dev_acc, predict_label
 
 
 

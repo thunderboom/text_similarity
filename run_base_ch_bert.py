@@ -33,20 +33,20 @@ class NewsConfig:
         self.tokenizer_file = os.path.join(absdir + _pretrain_path, _tokenizer_file)
         self.data_dir = absdir + _data_path
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')              # 设备
-        self.device_id = 2
+        self.device_id = 3
         self.do_lower_case = True
         self.label_on_test_set = True
         self.requires_grad = False
         self.class_list = []
-        self.num_labels = 3
+        self.num_labels = 2
         self.train_num_examples = 0
         self.dev_num_examples = 0
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
         self.hidden_size = 768
-        self.early_stop = True
+        self.early_stop = False
         self.require_improvement = 600 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
-        self.num_train_epochs = 19                                                               # epoch数
+        self.num_train_epochs = 4                                                               # epoch数
         self.batch_size = 32                                                                    # mini-batch大小
         self.pad_size = 64 if self.use_model == 'bert' else 32                                  # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
@@ -54,11 +54,11 @@ class NewsConfig:
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
         self.k_fold = 8
         # logging
-        self.is_logging2file = True
+        self.is_logging2file = False
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
         # save
         self.load_save_model = False
-        self.save_path = absdir + '/model_saved' + '/' + self.task
+        self.save_path = absdir + '/model_saved' + '/' + self.task + '/' + self.models_name
         self.seed = 369
         # 增强数据
         self.data_augment = False
@@ -100,13 +100,14 @@ def thucNews_task(config):
     if config.load_save_model:
         model_load(config, model, device='cpu')
 
-    dev_evaluate, predict_label = cross_validation(
+    model_example, dev_evaluate, predict_label = cross_validation(
         config, train_examples, dev_examples,
-        model, tokenizer, pattern='k-fold',
+        model, tokenizer, pattern='full-train',
         train_enhancement=DataAugment().dataAugment if config.data_augment else None,
         enhancement_arg=config.data_augment_args,
         test_examples=test_examples)
-    logging.info(dev_evaluate)
+    # logging.info(dev_evaluate)
+    model_save(config, model_example)
 
 
 if __name__ == '__main__':
