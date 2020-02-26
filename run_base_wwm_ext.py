@@ -1,12 +1,11 @@
-import logging
 from processors.TryDataProcessor import TryDataProcessor
 from transformers import BertTokenizer
 from models.bert import Bert
 
-from k_fold import cross_validation
+from utils.k_fold import cross_validation
 from utils.augment import DataAugment
 from utils.utils import *
-from train_eval import *
+from utils.train_eval import *
 
 
 class NewsConfig:

@@ -1,9 +1,7 @@
-import numpy as np
-import torch.utils.data as Data
 from torch.utils.data import DataLoader
 
 from utils.utils import *
-from train_eval import *
+from utils.train_eval import *
 
 logger = logging.getLogger(__name__)
 
