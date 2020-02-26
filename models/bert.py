@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import BertConfig, BertModel
 from torch.autograd import Variable
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def compute_loss(outputs, labels, loss_method='binary'):
@@ -83,13 +86,14 @@ class Bert(nn.Module):
             pooled_output = self.pooler(weighted_sum_state)
 
         elif self.pooling_tag:     #Avg Max Formal concat
-            last_hidden = outputs[0]
-            tag_output = last_hidden[:, 0, :]
+            last_hidden = outputs[0] #32, 64，768
+            tag_output = last_hidden[:, 0, :] #32, 768
             last_hidden = last_hidden.permute((0, 2, 1))  #32, 768, 64
-            avg_pooling = self.avgPooling(last_hidden).squeeze()
-            max_pooling = self.maxPooling(last_hidden).squeeze()
+            avg_pooling = self.avgPooling(last_hidden).squeeze(2)
+            max_pooling = self.maxPooling(last_hidden).squeeze(2)
             pooling_output = torch.cat((tag_output, avg_pooling, max_pooling), dim=1)
             pooled_output = self.pooler(pooling_output)
+
         else:
             pooled_output = outputs[1]
 
@@ -158,10 +162,35 @@ class BertSentence(nn.Module):
             attention_mask=q2_attention_mask,
             token_type_ids=q2_token_type_ids,
         )
-        q1_hidden = outputs1[0][:, 0, :]
-        q2_hidden = outputs2[0][:, 0, :]
+
+        q2_query = torch.tanh(outputs1[0][:, 0, :])
+        q1_query = torch.tanh(outputs2[0][:, 0, :])
+        q2_query = q2_query.unsqueeze(1)                # [32, 1, 768]
+        q1_query = q1_query.unsqueeze(1)                # [32, 1, 768]
+
+        q1_outs = outputs1[0][:, 1:, :]  # [32, 32-1, 768]
+        q2_outs = outputs2[0][:, 1:, :]  # [32, 32-1, 768]
+
+        # cal attention score
+        q1_attention_mask = q1_attention_mask[:, 1:]  # [32, 32-1]
+        q2_attention_mask = q2_attention_mask[:, 1:]  # [32, 32-1]
+
+        q1_attention_mask_ext = (1 - q1_attention_mask) * -10000.
+        q2_attention_mask_ext = (1 - q2_attention_mask) * -10000.
+
+        q1_a = torch.matmul(q1_query, q1_outs.permute(0, 2, 1)).squeeze(1)  # [32, 32-1]
+        q2_a = torch.matmul(q2_query, q2_outs.permute(0, 2, 1)).squeeze(1)  # [32, 32-1]
+
+        q1_attention_scores = (q1_a + q1_attention_mask_ext).unsqueeze(1)  # [32, 1, 32-1]
+        q2_attention_scores = (q2_a + q2_attention_mask_ext).unsqueeze(1)  # [32, 1, 32-1]
+
+        q1_attention_scores = F.softmax(q1_attention_scores, dim=-1)
+        q2_attention_scores = F.softmax(q2_attention_scores, dim=-1)
+
+        sent1_out = torch.matmul(q1_attention_scores, q1_outs).squeeze(1)
+        sent2_out = torch.matmul(q2_attention_scores, q2_outs).squeeze(1)
         # easy concat
-        query_hidden = torch.cat((q1_hidden, q2_hidden), dim=1)
+        query_hidden = torch.cat((sent1_out, sent2_out), dim=1)  # [32, 768*2]
         # classfier
         pooled_output = self.pooler(query_hidden)
         out = None

@@ -117,8 +117,15 @@ def train_dev_test(
     dev_loader = DataLoader(dev_dataset, batch_size=config.batch_size, shuffle=True)
 
     train_module(config, model_example, train_loader, dev_loader)
-    dev_acc, dev_loss = evaluate_module(config, model_example, dev_loader)
+    dev_acc, dev_loss, total_inputs_err = evaluate_module(config, model_example, dev_loader)
     logger.info('evaluate: acc: {0:>6.2%}, loss: {1:>.6f}'.format(dev_acc, dev_loss))
+    logger.info('classify error sentences:')
+    for idx, error_dict in enumerate(total_inputs_err):
+        tokens = tokenizer.convert_ids_to_tokens(error_dict['sentence_ids'], skip_special_tokens=True)
+        logger.info('## idx: {}'.format(idx+1))
+        logger.info('sentences: {}.'.format(''.join(x for x in tokens)))
+        logger.info('true label: {}'.format(error_dict['true_label']))
+        logger.info('proba: {}'.format(error_dict['proba']))
 
     if test_examples:
         test_features = convert_to_features(

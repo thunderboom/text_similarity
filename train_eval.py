@@ -1,5 +1,6 @@
 # coding: UTF-8
 import os
+import copy
 import logging
 import numpy as np
 import torch
@@ -65,7 +66,7 @@ def model_train(config, model, train_iter, dev_iter):
             else:
                 labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
 
-            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, 4)
+            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, 1)
 
             model.zero_grad()
             loss.backward()
@@ -81,7 +82,7 @@ def model_train(config, model, train_iter, dev_iter):
                 train_acc = metrics.accuracy_score(labels_all, predict_all)
                 predict_all = []
                 labels_all = []
-                dev_acc, dev_loss = model_evaluate(config, model, dev_iter)
+                dev_acc, dev_loss, _ = model_evaluate(config, model, dev_iter)
 
                 if dev_loss < dev_best_loss:
                     dev_best_loss = dev_loss
@@ -93,7 +94,7 @@ def model_train(config, model, train_iter, dev_iter):
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'
                 logger.info(msg.format(global_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
 
-            if global_batch - last_improve > config.require_improvement:
+            if config.early_stop and global_batch - last_improve > config.require_improvement:
                 # 验证集loss超过1000batch没下降，结束训练
                 logger.info("No optimization for a long time, auto-stopping...")
                 flag = True
@@ -179,7 +180,7 @@ def model_train_sentence(config, model, train_iter, dev_iter):
                 train_acc = metrics.accuracy_score(labels_all, predict_all)
                 predict_all = []
                 labels_all = []
-                dev_acc, dev_loss = model_evaluate_sentence(config, model, dev_iter)
+                dev_acc, dev_loss, _ = model_evaluate_sentence(config, model, dev_iter)
 
                 if dev_loss < dev_best_loss:
                     dev_best_loss = dev_loss
@@ -191,7 +192,7 @@ def model_train_sentence(config, model, train_iter, dev_iter):
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'
                 logger.info(msg.format(global_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
 
-            if global_batch - last_improve > config.require_improvement:
+            if config.early_stop and global_batch - last_improve > config.require_improvement:
                 # 验证集loss超过1000batch没下降，结束训练
                 logger.info("No optimization for a long time, auto-stopping...")
                 flag = True
@@ -205,6 +206,7 @@ def model_evaluate(config, model, data_iter, test=False):
     loss_total = 0
     predict_all = np.array([], dtype=int)
     labels_all = np.array([], dtype=int)
+    total_inputs_error = []
     with torch.no_grad():
         for i, (input_ids, attention_mask, token_type_ids, labels) in enumerate(data_iter):
 
@@ -219,18 +221,23 @@ def model_evaluate(config, model, data_iter, test=False):
 
             outputs, loss = model(input_ids, attention_mask, token_type_ids, labels, 1)
 
+            outputs = outputs.cpu().detach().numpy()
+            predic = np.array(outputs >= 0.5, dtype='int')
+            predict_all = np.append(predict_all, predic)
+
             if not test:
                 labels = labels.data.cpu().numpy()
                 labels_all = np.append(labels_all, labels)
                 loss_total += loss
 
-            predic = np.array(outputs.cpu().detach().numpy() >= 0.5, dtype='int')
-            predict_all = np.append(predict_all, predic)
+                input_ids = input_ids.data.cpu().detach().numpy()
+                classify_error = get_classify_error(input_ids, predic, labels, outputs)
+                total_inputs_error.extend(classify_error)
 
     if test:
         return list(predict_all)
     acc = metrics.accuracy_score(labels_all, predict_all)
-    return acc, loss_total / len(data_iter)
+    return acc, loss_total / len(data_iter), total_inputs_error
 
 
 def model_evaluate_sentence(config, model, data_iter, test=False):
@@ -239,6 +246,7 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
     loss_total = 0
     predict_all = np.array([], dtype=int)
     labels_all = np.array([], dtype=int)
+    total_inputs_error = []
     with torch.no_grad():
         for i, (input_ids_1, attention_mask_1, token_type_ids_1,
                 input_ids_2, attention_mask_2, token_type_ids_2, labels) in enumerate(data_iter):
@@ -260,18 +268,48 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
                                   input_ids_2, attention_mask_2, token_type_ids_2,
                                   labels, 1)
 
+            outputs = outputs.cpu().detach().numpy()
+            predic = np.array(outputs >= 0.5, dtype='int')
+            predict_all = np.append(predict_all, predic)
+
             if not test:
                 labels = labels.data.cpu().numpy()
                 labels_all = np.append(labels_all, labels)
                 loss_total += loss
 
-            predic = np.array(outputs.cpu().detach().numpy() >= 0.5, dtype='int')
-            predict_all = np.append(predict_all, predic)
+                input_ids_1 = input_ids_1.data.cpu().detach().numpy()
+                input_ids_2 = input_ids_2.data.cpu().detach().numpy()
+                classify_error = get_classify_error(input_ids_1, predic, labels, outputs, input_ids_2)
+                total_inputs_error.extend(classify_error)
 
     if test:
         return list(predict_all)
     acc = metrics.accuracy_score(labels_all, predict_all)
-    return acc, loss_total / len(data_iter)
+    return acc, loss_total / len(data_iter), total_inputs_error
+
+
+def get_classify_error(input_ids, predict, labels, proba, input_ids_pair=None):
+    error_list = []
+    error_idx = predict != labels
+    error_sentences = input_ids[error_idx == True]
+    total_sentences = []
+    if input_ids_pair is not None:
+        error_sentences_pair = input_ids_pair[error_idx == True]
+        for sentence1, sentence2 in zip(error_sentences, error_sentences_pair):
+            total_sentences.append(np.array(sentence1.tolist()+[117]+sentence2.tolist(), dtype=int))
+    else:
+        total_sentences = error_sentences
+
+    true_label = labels[error_idx == True]
+    pred_proba = proba[error_idx == True]
+    for sentences, label, prob in zip(total_sentences, true_label, pred_proba):
+        error_dict = {}
+        error_dict['sentence_ids'] = sentences
+        error_dict['true_label'] = label
+        error_dict['proba'] = prob
+        error_list.append(error_dict)
+
+    return error_list
 
 
 def model_test(config, model, test_iter):

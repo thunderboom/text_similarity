@@ -37,7 +37,7 @@ class NewsConfig:
         self.device_id = 2
         self.do_lower_case = True
         self.label_on_test_set = True
-        self.requires_grad = True
+        self.requires_grad = False
         self.class_list = []
         self.num_labels = 3
         self.train_num_examples = 0
@@ -45,8 +45,9 @@ class NewsConfig:
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
         self.hidden_size = 768
-        self.require_improvement = 700 if self.use_model == 'bert' else 1000                    # 若超过1000batch效果还没提升，则提前结束训练
-        self.num_train_epochs = 8                                                               # epoch数
+        self.early_stop = True
+        self.require_improvement = 600 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
+        self.num_train_epochs = 19                                                               # epoch数
         self.batch_size = 32                                                                    # mini-batch大小
         self.pad_size = 64 if self.use_model == 'bert' else 32                                  # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
@@ -59,19 +60,19 @@ class NewsConfig:
         # save
         self.load_save_model = False
         self.save_path = absdir + '/model_saved' + '/' + self.task
-        self.dev_split = 0.1
-        self.test_split = 0.1
         self.seed = 369
         # 增强数据
         self.data_augment = False
         self.data_augment_args = 'sameword'
         # Bert的后几层加权输出
         self.weighted_layer_tag = False
-        self.weighted_layer_num = 3
+        self.weighted_layer_num = 12
         # 拼接max_pooling和avg_pooling
         self.pooling_tag = False
         # 计算loss的方法
         self.loss_method = 'binary'  # [ binary, cross_entropy]
+        # 说明
+        self.z_test = 'multi-sample-drop:1'
 
 
 def thucNews_task(config):
