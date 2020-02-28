@@ -172,8 +172,8 @@ def k_fold_cross_validation(
     for train_data, dev_data in k_fold_loader:
         idx += 1
         logger.info('k-fold CrossValidation: # %d', idx)
-        _, dev_acc, _ = train_dev_test(config, train_data,dev_data, model, tokenizer,
-                       train_enhancement, enhancement_arg)
+        _, dev_acc, _ = train_dev_test(config, train_data, model, tokenizer,
+                       train_enhancement, enhancement_arg, dev_data)
 
         # 清理显存
         if config.device.type == 'gpu':

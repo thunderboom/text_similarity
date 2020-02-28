@@ -44,9 +44,9 @@ class NewsConfig:
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
         self.hidden_size = 768
-        self.early_stop = False
+        self.early_stop = True
         self.require_improvement = 600 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
-        self.num_train_epochs = 4                                                               # epoch数
+        self.num_train_epochs = 8                                                               # epoch数
         self.batch_size = 32                                                                    # mini-batch大小
         self.pad_size = 64 if self.use_model == 'bert' else 32                                  # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
@@ -54,7 +54,7 @@ class NewsConfig:
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
         self.k_fold = 8
         # logging
-        self.is_logging2file = False
+        self.is_logging2file = True
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
         # save
         self.load_save_model = False
@@ -102,12 +102,12 @@ def thucNews_task(config):
 
     model_example, dev_evaluate, predict_label = cross_validation(
         config, train_examples, dev_examples,
-        model, tokenizer, pattern='full-train',
+        model, tokenizer, pattern='k-fold',
         train_enhancement=DataAugment().dataAugment if config.data_augment else None,
         enhancement_arg=config.data_augment_args,
         test_examples=test_examples)
     # logging.info(dev_evaluate)
-    model_save(config, model_example)
+    # model_save(config, model_example)
 
 
 if __name__ == '__main__':

@@ -9,12 +9,12 @@ class TryDataProcessor:
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.csv")))
-        return self._read_csv(os.path.join(data_dir, "train.csv"))
+        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train_20200228.csv")))
+        return self._read_csv(os.path.join(data_dir, "train_20200228.csv"))
 
     def get_dev_examples(self, data_dir):
         """See base class."""
-        return self._read_csv(os.path.join(data_dir, "dev.csv"))
+        return self._read_csv(os.path.join(data_dir, "dev_20200228.csv"))
 
     def get_test_examples(self, data_dir):
         """See base class."""
@@ -44,9 +44,9 @@ class TryDataProcessor:
             tsv_list = list(csv.reader(f, delimiter=','))
             for line in tsv_list[1:]:
                 if is_test:
-                    data_list.append([line[1], line[2], '0', line[0]])
+                    data_list.append([line[2], line[3], '0', line[1]])
                 else:
-                    data_list.append([line[1], line[2], line[3], line[0]])
+                    data_list.append([line[2], line[3], line[4], line[1]])
                 #data_list.append([line[0], line[1], line[2], line[3]])
         return data_list
 
