@@ -18,7 +18,7 @@ class TryDataProcessor:
 
     def get_test_examples(self, data_dir):
         """See base class."""
-        return self._read_csv(os.path.join(data_dir, "test.csv"))
+        return self._read_csv(data_dir)
 
     def get_all_examples(self, data_dir):
         """See base class."""
