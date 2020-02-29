@@ -9,10 +9,12 @@ import os
 import pandas as pd
 
 
+
 class FeaureExtraction():
     def __init__(self):
-        self.column1 = 'question1'
-        self.column2 = 'question2'
+        self.column1 = 'query1'
+        self.column2 = 'query2'
+        self.file_path = '../real_data/symptom.txt'
 
     def graph_feature(self, df, graph_type='undirected'):  # udirected graph
         def q1_q2_in_intersect(row, column1, column2, q_in_dict):
@@ -53,19 +55,92 @@ class FeaureExtraction():
         columns = df.columns
         df['distance'] = df[[column1, column2]].apply(
             lambda x: Levenshtein.distance(x[column1], x[column2]), axis=1)
-        df['distance1'] = df[[column1, column2]].apply(
-            lambda x: Levenshtein.distance(x[column1], x[column2]) / max(len(x[column1]), len(x[column2])), axis=1)
-        df['distance2'] = df[[column1, column2]].apply(
-            lambda x: Levenshtein.distance(x[column1], x[column2]) / max(1, abs(len(x[column1]) - len(x[column2]))),
-            axis=1)
-        df['ratio'] = df[[column1, column2]].apply(lambda x: Levenshtein.ratio(x[column1], x[column2]),
-                                                               axis=1)
-        df['jaro'] = df[[column1, column2]].apply(lambda x: Levenshtein.jaro(x[column1], x[column2]),
-                                                              axis=1)
+        df['ratio'] = df[[column1, column2]].apply(
+            lambda x: Levenshtein.ratio(x[column1], x[column2]), axis=1)
+        df['jaro'] = df[[column1, column2]].apply(
+            lambda x: Levenshtein.jaro(x[column1], x[column2]), axis=1)
         df['jaro_winkler'] = df[[column1, column2]].apply(
             lambda x: Levenshtein.jaro_winkler(x[column1], x[column2]), axis=1)
         new_columns = list(set(df.columns) - set(columns))
         return df[new_columns]
+
+    def extrem_feautre(self, df):
+        def extreme_test(query):
+            extreme_words = ['最']
+            for word in extreme_words:
+                if word in query:
+                    return True
+        df['extreme_tag_1'] = df['query1'].apply(lambda x: extreme_test(x))
+        df['extreme_tag_2'] = df['query2'].apply(lambda x: extreme_test(x))
+        df['extreme_tag'] = df['extreme_tag_1'] == df['extreme_tag_2']
+        return df[['extreme_tag']]
+
+    def dictionary_feature(self, df):
+        def read_file(file_path):
+            words_list = []
+            with open(file_path, 'r', encoding='utf-8') as fr:
+                for line in fr.readlines():
+                    if '的' not in line:
+                        words_list.append(line.strip('\n'))
+            return words_list
+        # def save_file(word_list):
+        #     with open('./used_word.txt', 'w+', encoding='utf-8') as fw:
+        #         for word in word_list:
+        #             fw.write(word + '\n')
+        def query_compare(query1, query2, words_list):
+            query1_set = []
+            query2_set = []
+            for word in words_list:
+                if word in query1:
+                    query1_set.append(word)
+                    #used_word.append(word)
+                if word in query2:
+                    query2_set.append(word)
+                    #used_word.append(word)
+            query_list = list((set(query1_set) | set(query2_set))- (set(query1_set) & set(query1_set)))
+            if len(query_list) < 1:
+                return 0
+            else:
+                return 1
+        #used_word = []
+        column1, column2 = self.column1, self.column2
+        #症状
+        symptom_words_list = read_file(self.file_path)
+        df['symptom_tag'] = df[[column1, column2]].apply(
+            lambda x: query_compare(x[column1], x[column2], words_list=symptom_words_list), axis=1
+        )
+        # used_word = list(set(used_word))
+        # save_file(used_word)
+        return df[['symptom_tag']]
+
+
+    def word_bag_feature(self, df):
+        def compute_similarity(query1, query2, type='dice'):
+            query1_set = set(query1)
+            query2_set = set(query2)
+            if type == 'dice':
+                return len(query1_set & query2_set) / (len(query1_set) + len(query2_set))
+            elif type == 'jaccard':
+                return len(query1_set & query2_set) / len(query1_set | query2_set)
+            elif type == 'sim_set':
+                return len(query1_set & query2_set) / min(len(query1_set), len(query2_set))
+            else:
+                return ValueError("The input type error")
+
+        column1, column2 = self.column1, self.column2
+        columns = df.columns
+        df['word_bag_dice'] = df[[column1, column2]].apply(
+            lambda  x: compute_similarity(x[column1], x[column2], 'dice'), axis=1
+        )
+        df['word_bag_jaccard'] = df[[column1, column2]].apply(
+            lambda x: compute_similarity(x[column1], x[column2], 'jaccard'), axis=1
+        )
+        df['word_sim'] = df[[column1, column2]].apply(        #from error test
+            lambda x: compute_similarity(x[column1], x[column2], 'sim_set'), axis=1
+        )
+        new_columns = list(set(df.columns) - set(columns))
+        return df[new_columns]
+
 
     def Ngram_feature(self, df, n=2):
         column1, column2 = self.column1, self.column2
@@ -92,6 +167,9 @@ class FeaureExtraction():
         new_columns = list(set(df.columns) - set(columns))
         return df[new_columns]
 
+
+
+    
     def feature_label_plot(self, df, labels, feature_type):
         if feature_type != 'box' and feature_type != 'point':
             raise ValueError('feature_type must choose from box and point')
@@ -115,13 +193,22 @@ class FeaureExtraction():
         return None
 
 
-# #test
-# if __name__ == "__main__":
-#     path = os.path.join('../try_data/', 'train.csv')
-#     train_data = pd.read_csv(path)
-#     Extraction = FeaureExtraction()
-#     #df = Extraction.Ngram_feature(train_data[:1000], n=1)
-#     #df = Extraction.graph_feature(train_data[:1000], graph_type='undirected')
-#     df = Extraction.distance_feature(train_data[:1000])
-#     Extraction.feature_label_plot(df, train_data['label'][:1000], feature_type='box')
+
+#test
+if __name__ == "__main__":
+    train_path = os.path.join('../real_data/', 'train.csv')
+    dev_path = os.path.join('../real_data/', 'dev.csv')
+    train_data = pd.read_csv(train_path)
+    dev_data = pd.read_csv(dev_path)
+    train_data = pd.concat([train_data, dev_data], axis=0, ignore_index=True)
+    print(len(train_data))
+    Extraction = FeaureExtraction()
+    #总共11个特征
+    #df_feature = Extraction.Ngram_feature(train_data, n=1)  #2个特征   #上下文
+    #df_feature = Extraction.distance_feature(train_data)     #4个特征  #距离
+    #df_feature = Extraction.graph_feature(train_data, graph_type='directed')  #数据集统计特征
+    df_feature = Extraction.word_bag_feature(train_data)  #3个特征   #词袋特征
+    #df_feature = Extraction.extrem_feautre(train_data)    #1个特征   #文本特征(极端)
+    #df_feature = Extraction.dictionary_feature(train_data)  #1个特征  #文本特征(pair)
+    Extraction.feature_label_plot(df_feature, train_data['label'], feature_type='box')
 
