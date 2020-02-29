@@ -167,6 +167,8 @@ class BertSentence(nn.Module):
         q1_query = torch.tanh(outputs2[0][:, 0, :])
         q2_query = q2_query.unsqueeze(1)                # [32, 1, 768]
         q1_query = q1_query.unsqueeze(1)                # [32, 1, 768]
+        # q2_query = outputs1[1].unsqueeze(1)
+        # q1_query = outputs2[1].unsqueeze(1)
 
         q1_outs = outputs1[0][:, 1:, :]  # [32, 32-1, 768]
         q2_outs = outputs2[0][:, 1:, :]  # [32, 32-1, 768]
