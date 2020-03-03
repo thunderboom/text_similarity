@@ -500,6 +500,46 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
     return acc, loss_total / len(data_iter), total_inputs_error
 
 
+def model_multi_evaluate(config, model, data_iter, test=False):
+    model.eval()
+    loss_total = 0
+    predict_all = np.array([], dtype=int)
+    labels_all = np.array([], dtype=int)
+    total_inputs_error = []
+    with torch.no_grad():
+        for i, (input_ids, attention_mask, token_type_ids, labels, multi_label) in enumerate(data_iter):
+
+            input_ids = torch.tensor(input_ids).type(torch.LongTensor).to(config.device)
+            attention_mask = torch.tensor(attention_mask).type(torch.LongTensor).to(config.device)
+            token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
+
+            if config.loss_method in ['binary', 'focal_loss']:
+                labels = torch.tensor(labels).type(torch.FloatTensor).to(config.device) if not test else None
+            else:
+                labels = torch.tensor(labels).type(torch.LongTensor).to(config.device) if not test else None
+            multi_label = torch.tensor(labels).type(torch.LongTensor).to(config.device) if not test else None
+
+            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels, multi_label, 1)
+
+            outputs = outputs.cpu().detach().numpy()
+            predic = np.array(outputs >= 0.5, dtype='int')
+            predict_all = np.append(predict_all, predic)
+
+            if not test:
+                labels = labels.data.cpu().numpy()
+                labels_all = np.append(labels_all, labels)
+                loss_total += loss
+
+                input_ids = input_ids.data.cpu().detach().numpy()
+                classify_error = get_classify_error(input_ids, predic, labels, outputs)
+                total_inputs_error.extend(classify_error)
+
+    if test:
+        return list(predict_all)
+    acc = metrics.accuracy_score(labels_all, predict_all)
+    return acc, loss_total / len(data_iter), total_inputs_error
+
+
 def get_classify_error(input_ids, predict, labels, proba, input_ids_pair=None):
     error_list = []
     error_idx = predict != labels

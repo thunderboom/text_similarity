@@ -25,7 +25,7 @@ class NewsConfig:
         _data_path = '/real_data'
 
         # 使用的模型
-        self.use_model = 'bert'
+        self.use_model = 'multi_bert'
 
         self.models_name = 'ernie'
         self.task = 'base_real_data'
@@ -54,7 +54,7 @@ class NewsConfig:
         self.head_learning_rate = 1e-3                                                          # 后面的分类层的学习率
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
-        self.k_fold = 5
+        self.k_fold = 8
         # logging
         self.is_logging2file = True
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
@@ -71,13 +71,13 @@ class NewsConfig:
         # 拼接max_pooling和avg_pooling
         self.pooling_tag = False
         # 计算loss的方法
-        self.loss_method = 'focal_loss'  # [ binary, cross_entropy, focal_loss, ghmc]
+        self.loss_method = 'binary'  # [ binary, cross_entropy, focal_loss, ghmc]
         # 说明
         self.z_test = 'multi-sample-drop:1'
         # 差分学习率
         self.diff_learning_rate = True
         # multi-task
-        self.multi_loss_tag = False
+        self.multi_loss_tag = True
         self.multi_loss_weight = 0.4
         self.multi_class_list = []   # 第二任务标签
         self.multi_num_labels = 0    # 第二任务标签 数量

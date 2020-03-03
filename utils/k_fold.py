@@ -11,7 +11,7 @@ MODEL_CLASSES = {
     'bert_sentence': (convert_examples_to_features_sentence,BuildDataSetSentence,
                       model_train_sentence, model_evaluate_sentence),
     'multi_bert': (convert_examples_to_features, BuildDataSetMultiTask,
-                   model_multi_train, model_evaluate),
+                   model_multi_train, model_multi_evaluate),
 }
 
 

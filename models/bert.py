@@ -108,7 +108,7 @@ class Bert(nn.Module):
         else:
             pooled_output = outputs[1]
         
-        if self.multi_loss_tag:
+        if self.multi_loss_tag and multi_labels is not None:
             mulit_out = self.multi_classifier(pooled_output)
             multi_loss = compute_loss(mulit_out, multi_labels, loss_method='cross_entropy')  
         else:
