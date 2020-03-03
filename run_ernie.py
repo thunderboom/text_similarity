@@ -10,6 +10,7 @@ from utils.train_eval import *
 MODEL_CLASSES = {
    'bert':  Bert,
    'bert_sentence': BertSentence,
+   'multi_bert': Bert,  # multi_loss_tag
 }
 
 
@@ -73,8 +74,13 @@ class NewsConfig:
         self.loss_method = 'focal_loss'  # [ binary, cross_entropy, focal_loss, ghmc]
         # 说明
         self.z_test = 'multi-sample-drop:1'
-        #差分学习率 
+        # 差分学习率
         self.diff_learning_rate = True
+        # multi-task
+        self.multi_loss_tag = False
+        self.multi_loss_weight = 0.4
+        self.multi_class_list = []   # 第二任务标签
+        self.multi_num_labels = 0    # 第二任务标签 数量
 
 
 def thucNews_task(config):
@@ -89,6 +95,9 @@ def thucNews_task(config):
     processor = TryDataProcessor()
     config.class_list = processor.get_labels()
     config.num_labels = len(config.class_list)
+    if config.multi_loss_tag:
+        config.multi_class_list = processor.get_second_task_labels()
+        config.multi_num_labels = len(config.multi_class_list)
 
     train_examples = processor.get_train_examples(config.data_dir)
     dev_examples = processor.get_dev_examples(config.data_dir)

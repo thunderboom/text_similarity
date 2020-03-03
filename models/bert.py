@@ -67,8 +67,8 @@ class Bert(nn.Module):
             self.pooler = nn.Sequential(nn.Linear(768*3, 768), nn.Tanh())
         
         if self.multi_loss_tag:
-            self.multi_loss_weight = config.multi_loss_weight         #定义权重
-            self.multi_classifier = nn.Linear(config.hidden_size, 8)  #共用pooler层，增加任务相关性
+            self.multi_loss_weight = config.multi_loss_weight                           #定义权重
+            self.multi_classifier = nn.Linear(config.hidden_size, config.multi_num_labels)
             
         
     def forward(

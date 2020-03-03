@@ -31,6 +31,10 @@ class TryDataProcessor:
         """See base class."""
         return ["0", "1"]
 
+    def get_second_task_labels(self):
+        return ["肺炎", "支原体肺炎", "支气管炎", "上呼吸道感染",
+                "肺结核", "哮喘", "胸膜炎", "肺气肿", "感冒", "咳血"]
+
     @classmethod
     def _read_csv(cls, input_file):
         """

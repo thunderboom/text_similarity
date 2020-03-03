@@ -100,10 +100,34 @@ class InputFeaturesSentence(object):
         return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
 
 
+# 多任务
+class InputFeaturesMultiTask(object):
+
+    def __init__(self, input_ids, attention_mask=None, token_type_ids=None, label=None, second_label=None):
+        self.input_ids = input_ids
+        self.attention_mask = attention_mask
+        self.token_type_ids = token_type_ids
+        self.label = label
+        self.second_label = second_label
+
+    def __repr__(self):
+        return str(self.to_json_string())
+
+    def to_dict(self):
+        """Serializes this instance to a Python dictionary."""
+        output = copy.deepcopy(self.__dict__)
+        return output
+
+    def to_json_string(self):
+        """Serializes this instance to a JSON string."""
+        return json.dumps(self.to_dict(), indent=2, sort_keys=True) + "\n"
+
+
 def convert_examples_to_features(
     examples,
     tokenizer,
     label_list,
+    second_label_list=None,
     max_length=512,
     pad_token=0,
     pad_token_segment_id=0,
@@ -113,12 +137,16 @@ def convert_examples_to_features(
     :param examples: List [ sentences1,sentences2,label, category]
     :param tokenizer: Instance of a tokenizer that will tokenize the examples
     :param label_list: List of labels.
+    :param second_label_list:
     :param max_length: Maximum example length
     :param pad_token: 0
     :param pad_token_segment_id: 0
     :return: [(example.guid, input_ids, attention_mask, token_type_ids, label), ......]
     """
     label_map = {label: i for i, label in enumerate(label_list)}
+
+    if second_label_list:
+        second_label_map = {label: i for i, label in enumerate(second_label_list)}
 
     features = []
     for (index, example) in enumerate(examples):
@@ -138,6 +166,11 @@ def convert_examples_to_features(
         else:
             label = 0
 
+        if second_label_list:
+                second_label = second_label_map[example[3]]
+        else:
+            second_label = 0
+
         # if index < 3:
         #     logger.info("*** Example ***")
         #     logger.info("guid: %s" % (index))
@@ -148,9 +181,14 @@ def convert_examples_to_features(
         #     if example[2] is not None:
         #         logger.info("label: %s (id = %d)" % (example[2], label))
 
-        features.append(
-            InputFeatures(input_ids, attention_mask, token_type_ids, label)
-        )
+        if second_label_list:
+            features.append(
+                InputFeaturesMultiTask(input_ids, attention_mask, token_type_ids, label, second_label)
+            )
+        else:
+            features.append(
+                InputFeatures(input_ids, attention_mask, token_type_ids, label)
+            )
 
     return features
 
@@ -180,6 +218,7 @@ def convert_examples_to_features_sentence(
     examples,
     tokenizer,
     label_list,
+    second_label_list=None,
     max_length=512,
     pad_token=0,
     pad_token_segment_id=0,
@@ -189,12 +228,16 @@ def convert_examples_to_features_sentence(
     :param examples: List [ sentences1,sentences2,label, category]
     :param tokenizer: Instance of a tokenizer that will tokenize the examples
     :param label_list: List of labels.
+    :param second_label_list:
     :param max_length: Maximum example length
     :param pad_token: 0
     :param pad_token_segment_id: 0
     :return: [(example.guid, input_ids, attention_mask, token_type_ids, label), ......]
     """
     label_map = {label: i for i, label in enumerate(label_list)}
+
+    if second_label_list:
+        second_label_map = {label: i for i, label in enumerate(second_label_list)}
 
     features = []
     for (index, example) in enumerate(examples):
@@ -225,6 +268,11 @@ def convert_examples_to_features_sentence(
             label = label_map[example[2]]
         else:
             label = 0
+
+        if second_label_list:
+                second_label = second_label_map[example[3]]
+        else:
+            second_label = 0
 
         # if index < 3:
         #     logger.info("*** Example ***")
@@ -266,6 +314,27 @@ class BuildDataSetSentence(Data.Dataset):
 
         return input_ids_1, attention_mask_1, token_type_ids_1, \
                input_ids_2, attention_mask_2, token_type_ids_2, label
+
+    def __len__(self):
+        return len(self.features)
+
+
+class BuildDataSetMultiTask(Data.Dataset):
+    """
+    将经过convert_examples_to_features的数据 包装成 Dataset
+    """
+    def __init__(self, features):
+        self.features = features
+
+    def __getitem__(self, index):
+        feature = self.features[index]
+        input_ids = np.array(feature.input_ids)
+        attention_mask = np.array(feature.attention_mask)
+        token_type_ids = np.array(feature.token_type_ids)
+        label = np.array(feature.label)
+        second_label = np.array(feature.second_label)
+
+        return input_ids, attention_mask, token_type_ids, label, second_label
 
     def __len__(self):
         return len(self.features)

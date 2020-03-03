@@ -18,7 +18,7 @@ def model_train(config, model, train_iter, dev_iter=None):
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
     diff_part = ["bert.embeddings", "bert.encoder"]
-    if config.diff_learning_rate == False:
+    if config.diff_learning_rate is False:
         optimizer_grouped_parameters = [
             {
                 "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -33,7 +33,7 @@ def model_train(config, model, train_iter, dev_iter=None):
     else:
         print("use the different rate")
         logger.info("use the diff learning rate")
-        #the formal is basic_bert part, not include the pooler
+        # the formal is basic_bert part, not include the pooler
         optimizer_grouped_parameters = [
             {
                 "params": [p for n, p in model.named_parameters() if
@@ -148,7 +148,7 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
     diff_part = ["bert.embeddings", "bert.encoder"]
-    if config.diff_learning_rate == False:
+    if config.diff_learning_rate is False:
         optimizer_grouped_parameters = [
             {
                 "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -268,6 +268,137 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
                     else:
                         improve = ''
 
+
+                time_dif = time.time() - start_time
+                msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'
+                logger.info(msg.format(global_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
+
+            if config.early_stop and global_batch - last_improve > config.require_improvement:
+                # 验证集loss超过1000batch没下降，结束训练
+                logger.info("No optimization for a long time, auto-stopping...")
+                flag = True
+                break
+        if flag:
+            break
+
+
+def model_multi_train(config, model, train_iter, dev_iter=None):
+    start_time = time.time()
+
+    # Prepare optimizer and schedule (linear warmup and decay)
+    no_decay = ["bias", "LayerNorm.weight"]
+    diff_part = ["bert.embeddings", "bert.encoder"]
+    if config.diff_learning_rate is False:
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": config.weight_decay,
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0
+             },
+        ]
+        optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate)
+    else:
+        print("use the different rate")
+        logger.info("use the diff learning rate")
+        # the formal is basic_bert part, not include the pooler
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters() if
+                           not any(nd in n for nd in no_decay) and any(nd in n for nd in diff_part)],
+                "weight_decay": config.weight_decay,
+                "lr": config.learning_rate
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if
+                        any(nd in n for nd in no_decay) and any(nd in n for nd in diff_part)],
+                "weight_decay": 0.0,
+                "lr": config.learning_rate
+             },
+            {
+                "params": [p for n, p in model.named_parameters() if
+                           not any(nd in n for nd in no_decay) and not any(nd in n for nd in diff_part)],
+                "weight_decay": config.weight_decay,
+                "lr": config.head_learning_rate
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if
+                        any(nd in n for nd in no_decay) and not any(nd in n for nd in diff_part)],
+                "weight_decay": 0.0,
+                "lr": config.head_learning_rate
+             },
+        ]
+        optimizer = AdamW(optimizer_grouped_parameters)
+
+    t_total = len(train_iter) * config.num_train_epochs
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=t_total * config.warmup_proportion, num_training_steps=t_total
+    )
+
+    # Train!
+    logger.info("***** Running training *****")
+    logger.info("  Train Num examples = %d", config.train_num_examples)
+    logger.info("  Dev Num examples = %d", config.dev_num_examples)
+    logger.info("  Num Epochs = %d", config.num_train_epochs)
+    logger.info("  Instantaneous batch size GPU/CPU = %d", config.batch_size)
+    logger.info("  Total optimization steps = %d", t_total)
+    logger.info("  Train device:%s, id:%d", config.device, config.device_id)
+
+    global_batch = 0  # 记录进行到多少batch
+    dev_best_loss = float('inf')
+    last_improve = 0  # 记录上次验证集loss下降的batch数
+    flag = False  # 记录是否很久没有效果提升
+
+    predict_all = []
+    labels_all = []
+
+    for epoch in range(config.num_train_epochs):
+        logger.info('Epoch [{}/{}]'.format(epoch + 1, config.num_train_epochs))
+        # scheduler.step() # 学习率衰减
+        for i, (input_ids, attention_mask, token_type_ids, labels, multi_label) in enumerate(train_iter):
+            global_batch += 1
+            model.train()
+
+            input_ids = torch.tensor(input_ids).type(torch.LongTensor).to(config.device)
+            attention_mask = torch.tensor(attention_mask).type(torch.LongTensor).to(config.device)
+            token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
+            if config.loss_method in ['binary', 'focal_loss']:
+                labels_tensor = torch.tensor(labels).type(torch.FloatTensor).to(config.device)
+            else:
+                labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
+            multi_label_tensor = torch.tensor(multi_label).type(torch.LongTensor).to(config.device)
+
+            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, multi_label_tensor, 4)
+
+            model.zero_grad()
+            loss.backward()
+            optimizer.step()
+            scheduler.step()  # Update learning rate schedule
+
+            predic = list(np.array(outputs.cpu().detach().numpy() >= 0.50, dtype='int'))
+            labels_all.extend(labels)
+            predict_all.extend(predic)
+
+            if global_batch % 100 == 0:
+
+                train_acc = metrics.accuracy_score(labels_all, predict_all)
+                predict_all = []
+                labels_all = []
+
+                # dev 数据
+                dev_acc, dev_loss = 0, 0
+                improve = ''
+                if dev_iter is not None:
+                    dev_acc, dev_loss, _ = model_evaluate(config, model, dev_iter)
+
+                    if dev_loss < dev_best_loss:
+                        dev_best_loss = dev_loss
+                        improve = '*'
+                        last_improve = global_batch
+                    else:
+                        improve = ''
 
                 time_dif = time.time() - start_time
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'

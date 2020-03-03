@@ -6,10 +6,12 @@ from utils.train_eval import *
 logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = {
-   'bert':  (convert_examples_to_features, BuildDataSet,
+    'bert':  (convert_examples_to_features, BuildDataSet,
              model_train, model_evaluate),
-   'bert_sentence': (convert_examples_to_features_sentence,
-                     BuildDataSetSentence, model_train_sentence, model_evaluate_sentence),
+    'bert_sentence': (convert_examples_to_features_sentence,BuildDataSetSentence,
+                      model_train_sentence, model_evaluate_sentence),
+    'multi_bert': (convert_examples_to_features, BuildDataSetMultiTask,
+                   model_multi_train, model_evaluate),
 }
 
 
@@ -94,10 +96,11 @@ def train_dev_test(
     # 特征转化
     convert_to_features, build_data_set, train_module, evaluate_module = MODEL_CLASSES[config.use_model]
     train_features = convert_to_features(
-        train_data,
-        tokenizer,
-        config.class_list,
-        config.pad_size,
+        examples=train_data,
+        tokenizer=tokenizer,
+        label_list=config.class_list,
+        second_label_list=config.multi_class_list if config.multi_loss_tag else None,
+        max_length=config.pad_size,
         data_type='train'
     )
     train_dataset = build_data_set(train_features)
@@ -107,10 +110,11 @@ def train_dev_test(
     if dev_data is not None:
         config.dev_num_examples = len(dev_data)
         dev_features = convert_to_features(
-            dev_data,
-            tokenizer,
-            config.class_list,
-            config.pad_size,
+            examples=dev_data,
+            tokenizer=tokenizer,
+            label_list=config.class_list,
+            second_label_list=config.multi_class_list if config.multi_loss_tag else None,
+            max_length=config.pad_size,
             data_type='dev'
         )
         dev_dataset = build_data_set(dev_features)
@@ -218,6 +222,17 @@ def cross_validation(
             dev_data=None,
             test_examples=test_examples)
         return model_example, None, None
+    elif pattern == 'train-dev':
+        model_example, dev_acc, _ = train_dev_test(
+            config=config,
+            train_data=train_examples,
+            model=model,
+            tokenizer=tokenizer,
+            train_enhancement=train_enhancement,
+            enhancement_arg=enhancement_arg,
+            dev_data=dev_examples,
+            test_examples=None)
+        return model_example, dev_acc, None
     elif pattern == 'predict':
         model_example, dev_acc, predict_label = train_dev_test(
             config=config,
