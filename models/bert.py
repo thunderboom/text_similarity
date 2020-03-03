@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from transformers import BertConfig, BertModel
 from torch.autograd import Variable
 import logging
+from loss.focal_loss import FocalLoss, GHMC
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,10 @@ def compute_loss(outputs, labels, loss_method='binary'):
         loss = F.binary_cross_entropy(torch.sigmoid(outputs), labels)
     elif loss_method == 'cross_entropy':
         loss = F.cross_entropy(outputs, labels)
-
+    elif loss_method == 'focal_loss':
+        loss = FocalLoss()(outputs, labels)
+    elif loss_method == 'ghmc':
+        loss = GHMC()(outputs, labels)
     return loss
 
 
@@ -40,34 +44,41 @@ class Bert(nn.Module):
                 param.requires_grad = True
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        if self.loss_method == 'binary':
+        if self.loss_method in ['binary', 'focal_loss', 'ghmc']:
             self.classifier = nn.Linear(config.hidden_size, 1)
         else:
             self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
-        # add the weighted layer
+        # add the weighted
         self.hidden_weight = config.weighted_layer_tag         # must modify the config.json
         self.pooling_tag = config.pooling_tag
-
+        self.multi_loss_tag = config.multi_loss_tag  #定义多loss标签
+        
         if self.hidden_weight:
             self.weight_layer = config.weighted_layer_num
             #self.weight = torch.zeros(self.weight_layer).to(config.device)
             self.weight = torch.nn.Parameter(torch.FloatTensor(self.weight_layer), requires_grad=True)
             self.softmax = nn.Softmax()
-            self.pooler = nn.Sequential(nn.Linear(768, 768), nn.Tanh())
+            self.pooler = nn.Sequential(nn.Linear(config.hidden_size, config.hidden_size), nn.Tanh())
 
         elif self.pooling_tag:
             self.maxPooling = nn.MaxPool1d(64)
             self.avgPooling = nn.AvgPool1d(64)
             self.pooler = nn.Sequential(nn.Linear(768*3, 768), nn.Tanh())
-
+        
+        if self.multi_loss_tag:
+            self.multi_loss_weight = config.multi_loss_weight         #定义权重
+            self.multi_classifier = nn.Linear(config.hidden_size, 8)  #共用pooler层，增加任务相关性
+            
+        
     def forward(
             self,
             input_ids=None,
             attention_mask=None,
             token_type_ids=None,
             labels = None,
-            n = 1
+            multi_labels = None,   #mulit_labels
+            n = 5
     ):
         outputs = self.bert(
             input_ids,
@@ -96,7 +107,13 @@ class Bert(nn.Module):
 
         else:
             pooled_output = outputs[1]
-
+        
+        if self.multi_loss_tag:
+            mulit_out = self.multi_classifier(pooled_output)
+            multi_loss = compute_loss(mulit_out, multi_labels, loss_method='cross_entropy')  
+        else:
+            multi_loss = 0
+        
         out = None
         loss = 0
         for i in range(n):
@@ -107,8 +124,10 @@ class Bert(nn.Module):
                     loss = compute_loss(out, labels, loss_method=self.loss_method) / n
                 else:
                     loss += loss / n
-
-        if self.loss_method == 'binary':
+        
+        loss += multi_loss * self.multi_loss_weight
+        
+        if self.loss_method in ['binary', 'focal_loss', 'ghmc']:
             out = torch.sigmoid(out).flatten()
 
         return out, loss
@@ -136,7 +155,7 @@ class BertSentence(nn.Module):
         self.pooler = nn.Sequential(nn.Linear(config.hidden_size*2, config.hidden_size), nn.Tanh())
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        if self.loss_method == 'binary':
+        if self.loss_method in ['binary', 'focal_loss']:
             self.classifier = nn.Linear(config.hidden_size, 1)
         else:
             self.classifier = nn.Linear(config.hidden_size, config.num_labels)
@@ -167,8 +186,6 @@ class BertSentence(nn.Module):
         q1_query = torch.tanh(outputs2[0][:, 0, :])
         q2_query = q2_query.unsqueeze(1)                # [32, 1, 768]
         q1_query = q1_query.unsqueeze(1)                # [32, 1, 768]
-        # q2_query = outputs1[1].unsqueeze(1)
-        # q1_query = outputs2[1].unsqueeze(1)
 
         q1_outs = outputs1[0][:, 1:, :]  # [32, 32-1, 768]
         q2_outs = outputs2[0][:, 1:, :]  # [32, 32-1, 768]
@@ -206,7 +223,7 @@ class BertSentence(nn.Module):
                 else:
                     loss += loss / n
 
-        if self.loss_method == 'binary':
+        if self.loss_method in ['binary', 'focal_loss']:
             out = torch.sigmoid(out).flatten()
 
         return out, loss

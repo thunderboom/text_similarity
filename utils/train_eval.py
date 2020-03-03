@@ -17,17 +17,52 @@ def model_train(config, model, train_iter, dev_iter=None):
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
-    optimizer_grouped_parameters = [
-        {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-            "weight_decay": config.weight_decay,
-        },
-        {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-         "weight_decay": 0.0
-         },
-    ]
+    diff_part = ["bert.embeddings", "bert.encoder"]
+    if config.diff_learning_rate == False:
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": config.weight_decay,
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0
+             },
+        ]
+        optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate)
+    else:
+        print("use the different rate")
+        logger.info("use the diff learning rate")
+        #the formal is basic_bert part, not include the pooler
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters() if
+                           not any(nd in n for nd in no_decay) and any(nd in n for nd in diff_part)],
+                "weight_decay": config.weight_decay,
+                "lr": config.learning_rate
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if
+                        any(nd in n for nd in no_decay) and any(nd in n for nd in diff_part)],
+                "weight_decay": 0.0,
+                "lr": config.learning_rate
+             },
+            {
+                "params": [p for n, p in model.named_parameters() if
+                           not any(nd in n for nd in no_decay) and not any(nd in n for nd in diff_part)],
+                "weight_decay": config.weight_decay,
+                "lr": config.head_learning_rate
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if
+                        any(nd in n for nd in no_decay) and not any(nd in n for nd in diff_part)],
+                "weight_decay": 0.0,
+                "lr": config.head_learning_rate
+             },
+        ]
+        optimizer = AdamW(optimizer_grouped_parameters)
+
     t_total = len(train_iter) * config.num_train_epochs
-    optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate)
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=t_total * config.warmup_proportion, num_training_steps=t_total
     )
@@ -59,7 +94,7 @@ def model_train(config, model, train_iter, dev_iter=None):
             input_ids = torch.tensor(input_ids).type(torch.LongTensor).to(config.device)
             attention_mask = torch.tensor(attention_mask).type(torch.LongTensor).to(config.device)
             token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
-            if config.loss_method == 'binary':
+            if config.loss_method in ['binary', 'focal_loss']:
                 labels_tensor = torch.tensor(labels).type(torch.FloatTensor).to(config.device)
             else:
                 labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
@@ -112,17 +147,52 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
-    optimizer_grouped_parameters = [
-        {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-            "weight_decay": config.weight_decay,
-        },
-        {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-         "weight_decay": 0.0
-         },
-    ]
+    diff_part = ["bert.embeddings", "bert.encoder"]
+    if config.diff_learning_rate == False:
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": config.weight_decay,
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0
+             },
+        ]
+        optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate)
+    else:
+        print("use the different rate")
+        logger.info("use the diff learning rate")
+        #the formal is basic_bert part, not include the pooler
+        optimizer_grouped_parameters = [
+            {
+                "params": [p for n, p in model.named_parameters() if
+                           not any(nd in n for nd in no_decay) and any(nd in n for nd in diff_part)],
+                "weight_decay": config.weight_decay,
+                "lr": config.learning_rate
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if
+                        any(nd in n for nd in no_decay) and any(nd in n for nd in diff_part)],
+                "weight_decay": 0.0,
+                "lr": config.learning_rate
+             },
+            {
+                "params": [p for n, p in model.named_parameters() if
+                           not any(nd in n for nd in no_decay) and not any(nd in n for nd in diff_part)],
+                "weight_decay": config.weight_decay,
+                "lr": config.head_learning_rate
+            },
+            {
+                "params": [p for n, p in model.named_parameters() if
+                        any(nd in n for nd in no_decay) and not any(nd in n for nd in diff_part)],
+                "weight_decay": 0.0,
+                "lr": config.head_learning_rate
+             },
+        ]
+        optimizer = AdamW(optimizer_grouped_parameters)
+
     t_total = len(train_iter) * config.num_train_epochs
-    optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate)
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=t_total * config.warmup_proportion, num_training_steps=t_total
     )
@@ -137,7 +207,8 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
     logger.info("  Train device:%s, id:%d", config.device, config.device_id)
 
     global_batch = 0  # 记录进行到多少batch
-    dev_best_loss = float('inf')
+    #dev_best_loss = float('inf')
+    dev_bset_acc = 0
     last_improve = 0  # 记录上次验证集loss下降的batch数
     flag = False  # 记录是否很久没有效果提升
 
@@ -190,13 +261,13 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
                 improve = ''
                 if dev_iter is not None:
                     dev_acc, dev_loss, _ = model_evaluate_sentence(config, model, dev_iter)
-
-                    if dev_loss < dev_best_loss:
-                        dev_best_loss = dev_loss
+                    if dev_acc < dev_best_acc:
+                        dev_best_acc = dev_acc
                         improve = '*'
                         last_improve = global_batch
                     else:
                         improve = ''
+
 
                 time_dif = time.time() - start_time
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'
