@@ -373,3 +373,14 @@ def train_test_split(config, examples):
     test_examples = [test_data.dataset[idx] for idx in test_data.indices]
 
     return train_examples, test_examples
+
+
+def k_fold_volt_predict(predict_sets):
+    predict_sets = np.array(predict_sets)
+
+    last_predict = []
+    for idx in range(predict_sets.shape[1]):
+        pred = predict_sets[:, idx].mean()
+        last_predict.append(int(pred >= 0.50))
+
+    return last_predict

@@ -171,14 +171,15 @@ def k_fold_cross_validation(
              k_fold_predict_label : list. if not test_examples, k-fold predict on test.
     """
     dev_evaluate = []
+    dev_predict_set = []
     k_fold_loader = KFoldDataLoader(train_examples, nums=config.k_fold)
     idx = 0
     for train_data, dev_data in k_fold_loader:
         idx += 1
         logger.info('k-fold CrossValidation: # %d', idx)
-        _, dev_acc, _ = train_dev_test(config, train_data, model, tokenizer,
+        _, dev_acc, predict_label = train_dev_test(config, train_data, model, tokenizer,
                        train_enhancement, enhancement_arg, dev_data)
-
+        dev_predict_set.append(predict_label)
         # 清理显存
         if config.device.type == 'gpu':
             torch.cuda.empty_cache()
@@ -187,7 +188,7 @@ def k_fold_cross_validation(
 
     logger.info('K({}) models dev acc mean: {}'.format(idx, np.array(dev_evaluate).mean()))
 
-    return dev_evaluate
+    return dev_evaluate, dev_predict_set
 
 
 def cross_validation(
@@ -203,12 +204,12 @@ def cross_validation(
 ):
     if pattern == 'k-fold':
         train_examples.extend(dev_examples)
-        dev_evaluate = k_fold_cross_validation(
+        dev_evaluate, dev_predict_set = k_fold_cross_validation(
             config, train_examples, model, tokenizer,
             train_enhancement=train_enhancement,
             enhancement_arg=enhancement_arg
         )
-        return None, dev_evaluate, None
+        return None, dev_evaluate, dev_predict_set
     elif pattern == 'full-train':
         train_examples.extend(dev_examples)
         np.random.shuffle(train_examples)

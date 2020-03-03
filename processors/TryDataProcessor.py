@@ -35,6 +35,15 @@ class TryDataProcessor:
         return ["肺炎", "支原体肺炎", "支气管炎", "上呼吸道感染",
                 "肺结核", "哮喘", "胸膜炎", "肺气肿", "感冒", "咳血"]
 
+    def get_dev_labels(self, data_dir):
+        label_list = []
+        input_file = os.path.join(data_dir, "dev_20200228.csv")
+        with open(input_file, "r", encoding="utf-8") as f:
+            tsv_list = list(csv.reader(f, delimiter=','))
+            for line in tsv_list[1:]:
+                label_list.append(line[4])
+        return label_list
+
     @classmethod
     def _read_csv(cls, input_file):
         """

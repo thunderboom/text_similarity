@@ -1,6 +1,7 @@
 from processors.TryDataProcessor import TryDataProcessor
 from transformers import BertTokenizer
 from models.bert import Bert, BertSentence
+from sklearn import metrics
 
 from utils.k_fold import cross_validation
 from utils.augment import DataAugment
@@ -25,7 +26,7 @@ class NewsConfig:
         _data_path = '/real_data'
 
         # 使用的模型
-        self.use_model = 'multi_bert'
+        self.use_model = 'bert'
 
         self.models_name = 'ernie'
         self.task = 'base_real_data'
@@ -45,9 +46,9 @@ class NewsConfig:
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
         self.hidden_size = 768
-        self.early_stop = False
-        self.require_improvement = 1000 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
-        self.num_train_epochs = 5                                                        # epoch数
+        self.early_stop = True
+        self.require_improvement = 600 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
+        self.num_train_epochs = 8                                                       # epoch数
         self.batch_size = 64                                                                # mini-batch大小
         self.pad_size = 64 if self.use_model == 'bert' else 32                                  # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
@@ -77,8 +78,8 @@ class NewsConfig:
         # 差分学习率
         self.diff_learning_rate = True
         # multi-task
-        self.multi_loss_tag = True
-        self.multi_loss_weight = 0.4
+        self.multi_loss_tag = False
+        self.multi_loss_weight = 0.5
         self.multi_class_list = []   # 第二任务标签
         self.multi_num_labels = 0    # 第二任务标签 数量
 
@@ -119,7 +120,14 @@ def thucNews_task(config):
         enhancement_arg=config.data_augment_args,
         test_examples=test_examples)
     logging.info(dev_evaluate)
-    #model_save(config, model_example)
+
+    # volt for predict
+    dev_labels = processor.get_dev_labels(config.data_dir)
+    final_pred = k_fold_volt_predict(predict_label)
+    final_acc = metrics.accuracy_score(dev_labels, final_pred)
+    logger.info('final acc is :{}'.format(final_acc))
+
+    # model_save(config, model_example)
 
 
 if __name__ == '__main__':

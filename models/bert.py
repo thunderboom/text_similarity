@@ -124,8 +124,9 @@ class Bert(nn.Module):
                     loss = compute_loss(out, labels, loss_method=self.loss_method) / n
                 else:
                     loss += loss / n
-        
-        loss += multi_loss * self.multi_loss_weight
+
+        if self.multi_loss_tag and multi_labels is not None:
+            loss += multi_loss * self.multi_loss_weight
         
         if self.loss_method in ['binary', 'focal_loss', 'ghmc']:
             out = torch.sigmoid(out).flatten()
