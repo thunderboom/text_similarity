@@ -391,7 +391,7 @@ def model_multi_train(config, model, train_iter, dev_iter=None):
                 dev_acc, dev_loss = 0, 0
                 improve = ''
                 if dev_iter is not None:
-                    dev_acc, dev_loss, _ = model_evaluate(config, model, dev_iter)
+                    dev_acc, dev_loss, _ = model_multi_evaluate(config, model, dev_iter)
 
                     if dev_loss < dev_best_loss:
                         dev_best_loss = dev_loss
