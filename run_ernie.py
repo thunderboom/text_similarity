@@ -48,7 +48,7 @@ class NewsConfig:
         self.hidden_size = 768
         self.early_stop = True
         self.require_improvement = 600 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
-        self.num_train_epochs = 8                                                       # epoch数
+        self.num_train_epochs = 8                                                      # epoch数
         self.batch_size = 64                                                                # mini-batch大小
         self.pad_size = 64 if self.use_model == 'bert' else 32                                  # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
@@ -82,6 +82,8 @@ class NewsConfig:
         self.multi_loss_weight = 0.5
         self.multi_class_list = []   # 第二任务标签
         self.multi_num_labels = 0    # 第二任务标签 数量
+        # train pattern
+        self.pattern = 'k-volt'   # [predict, full-train, k-fold, k-volt]
 
 
 def thucNews_task(config):
@@ -103,7 +105,7 @@ def thucNews_task(config):
     train_examples = processor.get_train_examples(config.data_dir)
     dev_examples = processor.get_dev_examples(config.data_dir)
     # test_examples = processor.get_test_examples(config.data_dir)
-    test_examples = None
+    test_examples = copy.deepcopy(dev_examples)
 
     cur_model = MODEL_CLASSES[config.use_model]
     model = cur_model(config)
@@ -115,17 +117,18 @@ def thucNews_task(config):
 
     model_example, dev_evaluate, predict_label = cross_validation(
         config, train_examples, dev_examples,
-        model, tokenizer, pattern='k-fold',  #predict full-train
+        model, tokenizer, pattern=config.pattern,
         train_enhancement=DataAugment().dataAugment if config.data_augment else None,
         enhancement_arg=config.data_augment_args,
         test_examples=test_examples)
     logging.info(dev_evaluate)
 
     # volt for predict
-    dev_labels = processor.get_dev_labels(config.data_dir)
-    final_pred = k_fold_volt_predict(predict_label)
-    final_acc = metrics.accuracy_score(dev_labels, final_pred)
-    logger.info('final acc is :{}'.format(final_acc))
+    if config.pattern == 'k-volt':
+        dev_labels = processor.get_dev_labels(config.data_dir)
+        final_pred = k_fold_volt_predict(predict_label)
+        final_acc = metrics.accuracy_score(dev_labels, final_pred)
+        logger.info('final acc is :{}'.format(final_acc))
 
     # model_save(config, model_example)
 

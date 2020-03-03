@@ -375,9 +375,8 @@ def train_test_split(config, examples):
     return train_examples, test_examples
 
 
-def k_fold_volt_predict(predict_sets):
-    predict_sets = np.array(predict_sets)
-
+def k_fold_volt_predict(predict_labels):
+    predict_sets = np.array(predict_labels)
     last_predict = []
     for idx in range(predict_sets.shape[1]):
         pred = predict_sets[:, idx].mean()

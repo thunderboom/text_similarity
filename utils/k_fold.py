@@ -127,27 +127,27 @@ def train_dev_test(
     if dev_data is not None:
         dev_acc, dev_loss, total_inputs_err = evaluate_module(config, model_example, dev_loader)
         logger.info('classify error sentences:')
-        for idx, error_dict in enumerate(total_inputs_err):
-            tokens = tokenizer.convert_ids_to_tokens(error_dict['sentence_ids'], skip_special_tokens=True)
-            logger.info('## idx: {}'.format(idx+1))
-            logger.info('sentences: {}.'.format(''.join(x for x in tokens)))
-            logger.info('true label: {}'.format(error_dict['true_label']))
-            logger.info('proba: {}'.format(error_dict['proba']))
+        # for idx, error_dict in enumerate(total_inputs_err):
+        #     tokens = tokenizer.convert_ids_to_tokens(error_dict['sentence_ids'], skip_special_tokens=True)
+        #     logger.info('## idx: {}'.format(idx+1))
+        #     logger.info('sentences: {}.'.format(''.join(x for x in tokens)))
+        #     logger.info('true label: {}'.format(error_dict['true_label']))
+        #     logger.info('proba: {}'.format(error_dict['proba']))
 
         logger.info('evaluate: acc: {0:>6.2%}, loss: {1:>.6f}'.format(dev_acc, dev_loss))
 
     if test_examples:
         test_features = convert_to_features(
-            test_examples,
-            tokenizer,
-            config.class_list,
-            config.pad_size,
+            examples=test_examples,
+            tokenizer=tokenizer,
+            label_list=config.class_list,
+            second_label_list=config.multi_class_list if config.multi_loss_tag else None,
+            max_length=config.pad_size,
             data_type='test'
         )
         test_dataset = build_data_set(test_features)
         test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
         predict_label = evaluate_module(config, model_example, test_loader, test=True)
-        logger.info(predict_label)
 
     return model_example, dev_acc, predict_label
 
@@ -159,6 +159,7 @@ def k_fold_cross_validation(
         tokenizer,
         train_enhancement=None,
         enhancement_arg=None,
+        test_examples=None,
 ):
     """
     :param config:
@@ -167,6 +168,7 @@ def k_fold_cross_validation(
     :param tokenizer:
     :param train_enhancement: 数据增强的接口，仅作用在train上，返回的数据需和train_examples形式一样
     :param enhancement_arg:
+    :param test_examples:
     :return: dev_evaluate : list [dev_acc,...]
              k_fold_predict_label : list. if not test_examples, k-fold predict on test.
     """
@@ -178,7 +180,7 @@ def k_fold_cross_validation(
         idx += 1
         logger.info('k-fold CrossValidation: # %d', idx)
         _, dev_acc, predict_label = train_dev_test(config, train_data, model, tokenizer,
-                       train_enhancement, enhancement_arg, dev_data)
+                       train_enhancement, enhancement_arg, dev_data, test_examples=test_examples)
         dev_predict_set.append(predict_label)
         # 清理显存
         if config.device.type == 'gpu':
@@ -204,10 +206,19 @@ def cross_validation(
 ):
     if pattern == 'k-fold':
         train_examples.extend(dev_examples)
+        dev_evaluate, _ = k_fold_cross_validation(
+            config, train_examples, model, tokenizer,
+            train_enhancement=train_enhancement,
+            enhancement_arg=enhancement_arg,
+            test_examples=None,
+        )
+        return None, dev_evaluate, None
+    elif pattern == 'k-volt':
         dev_evaluate, dev_predict_set = k_fold_cross_validation(
             config, train_examples, model, tokenizer,
             train_enhancement=train_enhancement,
-            enhancement_arg=enhancement_arg
+            enhancement_arg=enhancement_arg,
+            test_examples=test_examples
         )
         return None, dev_evaluate, dev_predict_set
     elif pattern == 'full-train':
@@ -223,17 +234,6 @@ def cross_validation(
             dev_data=None,
             test_examples=test_examples)
         return model_example, None, None
-    elif pattern == 'train-dev':
-        model_example, dev_acc, _ = train_dev_test(
-            config=config,
-            train_data=train_examples,
-            model=model,
-            tokenizer=tokenizer,
-            train_enhancement=train_enhancement,
-            enhancement_arg=enhancement_arg,
-            dev_data=dev_examples,
-            test_examples=None)
-        return model_example, dev_acc, None
     elif pattern == 'predict':
         model_example, dev_acc, predict_label = train_dev_test(
             config=config,

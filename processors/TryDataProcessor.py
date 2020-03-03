@@ -32,8 +32,8 @@ class TryDataProcessor:
         return ["0", "1"]
 
     def get_second_task_labels(self):
-        return ["肺炎", "支原体肺炎", "支气管炎", "上呼吸道感染",
-                "肺结核", "哮喘", "胸膜炎", "肺气肿", "感冒", "咳血"]
+        return ["肺炎", "支原体肺炎", "上呼吸道感染", "哮喘",
+                "胸膜炎", "肺气肿", "感冒", "咳血"]
 
     def get_dev_labels(self, data_dir):
         label_list = []
@@ -41,7 +41,7 @@ class TryDataProcessor:
         with open(input_file, "r", encoding="utf-8") as f:
             tsv_list = list(csv.reader(f, delimiter=','))
             for line in tsv_list[1:]:
-                label_list.append(line[4])
+                label_list.append(int(line[4]))
         return label_list
 
     @classmethod

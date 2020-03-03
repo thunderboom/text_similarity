@@ -31,7 +31,6 @@ def model_train(config, model, train_iter, dev_iter=None):
         ]
         optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate)
     else:
-        print("use the different rate")
         logger.info("use the diff learning rate")
         # the formal is basic_bert part, not include the pooler
         optimizer_grouped_parameters = [
@@ -161,7 +160,6 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
         ]
         optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate)
     else:
-        print("use the different rate")
         logger.info("use the diff learning rate")
         #the formal is basic_bert part, not include the pooler
         optimizer_grouped_parameters = [
@@ -301,7 +299,6 @@ def model_multi_train(config, model, train_iter, dev_iter=None):
         ]
         optimizer = AdamW(optimizer_grouped_parameters, lr=config.learning_rate)
     else:
-        print("use the different rate")
         logger.info("use the diff learning rate")
         # the formal is basic_bert part, not include the pooler
         optimizer_grouped_parameters = [
@@ -416,8 +413,8 @@ def model_multi_train(config, model, train_iter, dev_iter=None):
 def model_evaluate(config, model, data_iter, test=False):
     model.eval()
     loss_total = 0
-    predict_all = np.array([], dtype=int)
-    labels_all = np.array([], dtype=int)
+    predict_all = []
+    labels_all = []
     total_inputs_error = []
     with torch.no_grad():
         for i, (input_ids, attention_mask, token_type_ids, labels) in enumerate(data_iter):
@@ -434,12 +431,12 @@ def model_evaluate(config, model, data_iter, test=False):
             outputs, loss = model(input_ids, attention_mask, token_type_ids, labels, 1)
 
             outputs = outputs.cpu().detach().numpy()
-            predic = np.array(outputs >= 0.5, dtype='int')
-            predict_all = np.append(predict_all, predic)
+            predic = list(np.array(outputs >= 0.5, dtype='int'))
+            predict_all.extend(predic)
 
             if not test:
                 labels = labels.data.cpu().numpy()
-                labels_all = np.append(labels_all, labels)
+                labels_all.extend(list(labels))
                 loss_total += loss
 
                 input_ids = input_ids.data.cpu().detach().numpy()
@@ -447,7 +444,7 @@ def model_evaluate(config, model, data_iter, test=False):
                 total_inputs_error.extend(classify_error)
 
     if test:
-        return list(predict_all)
+        return predict_all
     acc = metrics.accuracy_score(labels_all, predict_all)
     return acc, loss_total / len(data_iter), total_inputs_error
 
@@ -456,8 +453,8 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
 
     model.eval()
     loss_total = 0
-    predict_all = np.array([], dtype=int)
-    labels_all = np.array([], dtype=int)
+    predict_all = []
+    labels_all = []
     total_inputs_error = []
     with torch.no_grad():
         for i, (input_ids_1, attention_mask_1, token_type_ids_1,
@@ -481,12 +478,12 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
                                   labels, 1)
 
             outputs = outputs.cpu().detach().numpy()
-            predic = np.array(outputs >= 0.5, dtype='int')
-            predict_all = np.append(predict_all, predic)
+            predic = list(np.array(outputs >= 0.5, dtype='int'))
+            predict_all.extend(predic)
 
             if not test:
                 labels = labels.data.cpu().numpy()
-                labels_all = np.append(labels_all, labels)
+                labels_all.extend(list(labels))
                 loss_total += loss
 
                 input_ids_1 = input_ids_1.data.cpu().detach().numpy()
@@ -495,7 +492,7 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
                 total_inputs_error.extend(classify_error)
 
     if test:
-        return list(predict_all)
+        return predict_all
     acc = metrics.accuracy_score(labels_all, predict_all)
     return acc, loss_total / len(data_iter), total_inputs_error
 
@@ -503,8 +500,8 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
 def model_multi_evaluate(config, model, data_iter, test=False):
     model.eval()
     loss_total = 0
-    predict_all = np.array([], dtype=int)
-    labels_all = np.array([], dtype=int)
+    predict_all = []
+    labels_all = []
     total_inputs_error = []
     with torch.no_grad():
         for i, (input_ids, attention_mask, token_type_ids, labels, multi_label) in enumerate(data_iter):
@@ -522,12 +519,12 @@ def model_multi_evaluate(config, model, data_iter, test=False):
             outputs, loss = model(input_ids, attention_mask, token_type_ids, labels, multi_label, 1)
 
             outputs = outputs.cpu().detach().numpy()
-            predic = np.array(outputs >= 0.5, dtype='int')
-            predict_all = np.append(predict_all, predic)
+            predic = list(np.array(outputs >= 0.5, dtype='int'))
+            predict_all.extend(predic)
 
             if not test:
                 labels = labels.data.cpu().numpy()
-                labels_all = np.append(labels_all, labels)
+                labels_all.extend(list(labels))
                 loss_total += loss
 
                 input_ids = input_ids.data.cpu().detach().numpy()
@@ -535,7 +532,7 @@ def model_multi_evaluate(config, model, data_iter, test=False):
                 total_inputs_error.extend(classify_error)
 
     if test:
-        return list(predict_all)
+        return predict_all
     acc = metrics.accuracy_score(labels_all, predict_all)
     return acc, loss_total / len(data_iter), total_inputs_error
 
