@@ -46,18 +46,18 @@ class NewsConfig:
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
         self.hidden_size = 768
-        self.early_stop = True
-        self.require_improvement = 600 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
-        self.num_train_epochs = 8                                                      # epoch数
-        self.batch_size = 64                                                                # mini-batch大小
-        self.pad_size = 64 if self.use_model == 'bert' else 32                                  # 每句话处理成的长度
+        self.early_stop = False
+        self.require_improvement = 800 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
+        self.num_train_epochs = 10                                                               # epoch数
+        self.batch_size = 64                                                                      # mini-batch大小
+        self.pad_size = 64                                                                      # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
         self.head_learning_rate = 1e-3                                                          # 后面的分类层的学习率
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
-        self.k_fold = 8
+        self.k_fold = 5
         # logging
-        self.is_logging2file = True
+        self.is_logging2file = False
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
         # save
         self.load_save_model = False
@@ -76,14 +76,20 @@ class NewsConfig:
         # 说明
         self.z_test = 'multi-sample-drop:1'
         # 差分学习率
-        self.diff_learning_rate = True
+        self.diff_learning_rate = False
         # multi-task
         self.multi_loss_tag = False
-        self.multi_loss_weight = 0.5
+        self.multi_loss_weight = 0.1
         self.multi_class_list = []   # 第二任务标签
         self.multi_num_labels = 0    # 第二任务标签 数量
         # train pattern
-        self.pattern = 'k-volt'   # [predict, full-train, k-fold, k-volt]
+        self.pattern = 'predict'   # [predict, full_train, k_fold, k_volt, k_volt_submit]
+        # preprocessing
+        self.stop_word_valid = True
+        self.medicine_valid = True
+        self.symptom_valid = True
+        self.medicine_replace_word = ''
+        self.symptom_replace_word = ''
 
 
 def thucNews_task(config):
@@ -95,7 +101,7 @@ def thucNews_task(config):
 
     tokenizer = BertTokenizer.from_pretrained(config.tokenizer_file,
                                               do_lower_case=config.do_lower_case)
-    processor = TryDataProcessor()
+    processor = TryDataProcessor(config)
     config.class_list = processor.get_labels()
     config.num_labels = len(config.class_list)
     if config.multi_loss_tag:
@@ -124,7 +130,7 @@ def thucNews_task(config):
     logging.info(dev_evaluate)
 
     # volt for predict
-    if config.pattern == 'k-volt':
+    if config.pattern == 'k_volt':
         dev_labels = processor.get_dev_labels(config.data_dir)
         final_pred = k_fold_volt_predict(predict_label)
         final_acc = metrics.accuracy_score(dev_labels, final_pred)

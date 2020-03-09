@@ -67,7 +67,7 @@ class Bert(nn.Module):
             self.pooler = nn.Sequential(nn.Linear(768*3, 768), nn.Tanh())
         
         if self.multi_loss_tag:
-            self.multi_loss_weight = config.multi_loss_weight                           #定义权重
+            self.multi_loss_weight = config.multi_loss_weight                           # 定义权重
             self.multi_classifier = nn.Linear(config.hidden_size, config.multi_num_labels)
             
         
@@ -126,7 +126,7 @@ class Bert(nn.Module):
                     loss += loss / n
 
         if self.multi_loss_tag and multi_labels is not None:
-            loss += multi_loss * self.multi_loss_weight
+            loss = loss * (1-self.multi_loss_weight) + multi_loss * self.multi_loss_weight
         
         if self.loss_method in ['binary', 'focal_loss', 'ghmc']:
             out = torch.sigmoid(out).flatten()
@@ -153,7 +153,7 @@ class BertSentence(nn.Module):
         if config.requires_grad:
             for param in self.bert.parameters():
                 param.requires_grad = True
-        self.pooler = nn.Sequential(nn.Linear(config.hidden_size*2, config.hidden_size), nn.Tanh())
+        self.pooler = nn.Sequential(nn.Linear(config.hidden_size*3, config.hidden_size), nn.Tanh())
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
         if self.loss_method in ['binary', 'focal_loss']:
@@ -163,6 +163,9 @@ class BertSentence(nn.Module):
 
     def forward(
             self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
             q1_input_ids=None,
             q1_attention_mask=None,
             q1_token_type_ids=None,
@@ -170,8 +173,14 @@ class BertSentence(nn.Module):
             q2_attention_mask=None,
             q2_token_type_ids=None,
             labels=None,
-            n = 1
+            n=1,
     ):
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+        )
+
         outputs1 = self.bert(
             q1_input_ids,
             attention_mask=q1_attention_mask,
@@ -210,7 +219,7 @@ class BertSentence(nn.Module):
         sent1_out = torch.matmul(q1_attention_scores, q1_outs).squeeze(1)
         sent2_out = torch.matmul(q2_attention_scores, q2_outs).squeeze(1)
         # easy concat
-        query_hidden = torch.cat((sent1_out, sent2_out), dim=1)  # [32, 768*2]
+        query_hidden = torch.cat((outputs[1], sent1_out, sent2_out), dim=1)  # [32, 768*3]
         # classfier
         pooled_output = self.pooler(query_hidden)
         out = None

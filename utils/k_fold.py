@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 MODEL_CLASSES = {
     'bert':  (convert_examples_to_features, BuildDataSet,
              model_train, model_evaluate),
-    'bert_sentence': (convert_examples_to_features_sentence,BuildDataSetSentence,
+    'bert_sentence': (convert_examples_to_features_sentence, BuildDataSetSentence,
                       model_train_sentence, model_evaluate_sentence),
     'multi_bert': (convert_examples_to_features, BuildDataSetMultiTask,
                    model_multi_train, model_multi_evaluate),
@@ -122,10 +122,10 @@ def train_dev_test(
     else:
         dev_loader = None
 
-    train_module(config, model_example, train_loader, dev_loader)
+    best_model = train_module(config, model_example, train_loader, dev_loader)
 
     if dev_data is not None:
-        dev_acc, dev_loss, total_inputs_err = evaluate_module(config, model_example, dev_loader)
+        dev_acc, dev_loss, total_inputs_err = evaluate_module(config, best_model, dev_loader)
         logger.info('classify error sentences:')
         # for idx, error_dict in enumerate(total_inputs_err):
         #     tokens = tokenizer.convert_ids_to_tokens(error_dict['sentence_ids'], skip_special_tokens=True)
@@ -136,7 +136,9 @@ def train_dev_test(
 
         logger.info('evaluate: acc: {0:>6.2%}, loss: {1:>.6f}'.format(dev_acc, dev_loss))
 
-    if test_examples:
+    if test_examples is None and dev_data is not None:
+        test_examples = dev_data
+
         test_features = convert_to_features(
             examples=test_examples,
             tokenizer=tokenizer,
@@ -149,7 +151,7 @@ def train_dev_test(
         test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
         predict_label = evaluate_module(config, model_example, test_loader, test=True)
 
-    return model_example, dev_acc, predict_label
+    return best_model, dev_acc, predict_label
 
 
 def k_fold_cross_validation(
@@ -160,6 +162,7 @@ def k_fold_cross_validation(
         train_enhancement=None,
         enhancement_arg=None,
         test_examples=None,
+        save_model=False,
 ):
     """
     :param config:
@@ -169,6 +172,7 @@ def k_fold_cross_validation(
     :param train_enhancement: 数据增强的接口，仅作用在train上，返回的数据需和train_examples形式一样
     :param enhancement_arg:
     :param test_examples:
+    :param save_model:
     :return: dev_evaluate : list [dev_acc,...]
              k_fold_predict_label : list. if not test_examples, k-fold predict on test.
     """
@@ -179,14 +183,16 @@ def k_fold_cross_validation(
     for train_data, dev_data in k_fold_loader:
         idx += 1
         logger.info('k-fold CrossValidation: # %d', idx)
-        _, dev_acc, predict_label = train_dev_test(config, train_data, model, tokenizer,
+        best_model, dev_acc, predict_label = train_dev_test(config, train_data, model, tokenizer,
                        train_enhancement, enhancement_arg, dev_data, test_examples=test_examples)
         dev_predict_set.append(predict_label)
         # 清理显存
         if config.device.type == 'gpu':
             torch.cuda.empty_cache()
-
         dev_evaluate.append(dev_acc)
+
+        if save_model:
+            model_save(config, best_model, config.models_name+'_'+str(idx))
 
     logger.info('K({}) models dev acc mean: {}'.format(idx, np.array(dev_evaluate).mean()))
 
@@ -199,12 +205,12 @@ def cross_validation(
         dev_examples,
         model,
         tokenizer,
-        pattern='k-fold',
+        pattern='k_fold',
         train_enhancement=None,
         enhancement_arg=None,
         test_examples=None,
 ):
-    if pattern == 'k-fold':
+    if pattern == 'k_fold':
         train_examples.extend(dev_examples)
         dev_evaluate, _ = k_fold_cross_validation(
             config, train_examples, model, tokenizer,
@@ -213,7 +219,7 @@ def cross_validation(
             test_examples=None,
         )
         return None, dev_evaluate, None
-    elif pattern == 'k-volt':
+    elif pattern == 'k_volt':
         dev_evaluate, dev_predict_set = k_fold_cross_validation(
             config, train_examples, model, tokenizer,
             train_enhancement=train_enhancement,
@@ -221,7 +227,17 @@ def cross_validation(
             test_examples=test_examples
         )
         return None, dev_evaluate, dev_predict_set
-    elif pattern == 'full-train':
+    elif pattern == 'k_volt_submit':
+        train_examples.extend(dev_examples)
+        dev_evaluate, dev_predict_set = k_fold_cross_validation(
+            config, train_examples, model, tokenizer,
+            train_enhancement=train_enhancement,
+            enhancement_arg=enhancement_arg,
+            test_examples=None,
+            save_model=True
+        )
+        return None, dev_evaluate, dev_predict_set
+    elif pattern == 'full_train':
         train_examples.extend(dev_examples)
         np.random.shuffle(train_examples)
         model_example, _, _ = train_dev_test(

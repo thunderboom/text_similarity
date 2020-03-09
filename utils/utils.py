@@ -77,8 +77,12 @@ class InputFeatures(object):
 # 单句特征存储单元
 class InputFeaturesSentence(object):
 
-    def __init__(self, input_ids_1=None, attention_mask_1=None, token_type_ids_1=None, input_ids_2=None,
+    def __init__(self, input_ids, attention_mask, token_type_ids,
+                 input_ids_1=None, attention_mask_1=None, token_type_ids_1=None, input_ids_2=None,
                  attention_mask_2=None, token_type_ids_2=None, label=None):
+        self.input_ids = input_ids
+        self.attention_mask = attention_mask
+        self.token_type_ids = token_type_ids
         self.input_ids_1 = input_ids_1
         self.attention_mask_1 = attention_mask_1
         self.token_type_ids_1 = token_type_ids_1
@@ -245,21 +249,33 @@ def convert_examples_to_features_sentence(
         if data_type == 'train' and np.random.random() < 0.5:
             example[0], example[1] = example[1], example[0]
 
-        inputs_1 = tokenizer.encode_plus(example[0], add_special_tokens=True, max_length=max_length)
+        # 双句
+        inputs = tokenizer.encode_plus(example[0], example[1], add_special_tokens=True, max_length=max_length)
+        input_ids, token_type_ids = inputs["input_ids"], inputs["token_type_ids"]
+        attention_mask = [1] * len(input_ids)
+
+        # 单句1
+        inputs_1 = tokenizer.encode_plus(example[0], add_special_tokens=True, max_length=max_length//2)
         input_ids_1, token_type_ids_1 = inputs_1["input_ids"], inputs_1["token_type_ids"]
         attention_mask_1 = [1] * len(input_ids_1)
 
-        inputs_2 = tokenizer.encode_plus(example[1], add_special_tokens=True, max_length=max_length)
+        # 单句2
+        inputs_2 = tokenizer.encode_plus(example[1], add_special_tokens=True, max_length=max_length//2)
         input_ids_2, token_type_ids_2 = inputs_2["input_ids"], inputs_2["token_type_ids"]
         attention_mask_2 = [1] * len(input_ids_2)
 
         # Zero-pad up to the sequence length.
-        padding_length_1 = max_length - len(input_ids_1)
+        padding_length = max_length - len(input_ids)
+        input_ids = input_ids + ([pad_token] * padding_length)
+        attention_mask = attention_mask + ([0] * padding_length)
+        token_type_ids = token_type_ids + ([pad_token_segment_id] * padding_length)
+
+        padding_length_1 = max_length//2 - len(input_ids_1)
         input_ids_1 = input_ids_1 + ([pad_token] * padding_length_1)
         attention_mask_1 = attention_mask_1 + ([0] * padding_length_1)
         token_type_ids_1 = token_type_ids_1 + ([pad_token_segment_id] * padding_length_1)
 
-        padding_length_2 = max_length - len(input_ids_2)
+        padding_length_2 = max_length//2 - len(input_ids_2)
         input_ids_2 = input_ids_2 + ([pad_token] * padding_length_2)
         attention_mask_2 = attention_mask_2 + ([0] * padding_length_2)
         token_type_ids_2 = token_type_ids_2 + ([pad_token_segment_id] * padding_length_2)
@@ -285,8 +301,9 @@ def convert_examples_to_features_sentence(
         #         logger.info("label: %s (id = %d)" % (example[2], label))
 
         features.append(
-            InputFeaturesSentence(input_ids_1, attention_mask_1, token_type_ids_1,
-                                  input_ids_2,  attention_mask_2, token_type_ids_2, label)
+            InputFeaturesSentence(input_ids, attention_mask, token_type_ids,
+                                input_ids_1, attention_mask_1, token_type_ids_1,
+                                input_ids_2,  attention_mask_2, token_type_ids_2, label)
         )
 
     return features
@@ -302,6 +319,10 @@ class BuildDataSetSentence(Data.Dataset):
     def __getitem__(self, index):
         feature = self.features[index]
 
+        input_ids = np.array(feature.input_ids)
+        attention_mask = np.array(feature.attention_mask)
+        token_type_ids = np.array(feature.token_type_ids)
+
         input_ids_1 = np.array(feature.input_ids_1)
         attention_mask_1 = np.array(feature.attention_mask_1)
         token_type_ids_1 = np.array(feature.token_type_ids_1)
@@ -312,8 +333,9 @@ class BuildDataSetSentence(Data.Dataset):
 
         label = np.array(feature.label)
 
-        return input_ids_1, attention_mask_1, token_type_ids_1, \
-               input_ids_2, attention_mask_2, token_type_ids_2, label
+        return input_ids, attention_mask, token_type_ids, \
+            input_ids_1, attention_mask_1, token_type_ids_1, \
+            input_ids_2, attention_mask_2, token_type_ids_2, label
 
     def __len__(self):
         return len(self.features)

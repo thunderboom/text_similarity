@@ -76,12 +76,13 @@ def model_train(config, model, train_iter, dev_iter=None):
     logger.info("  Train device:%s, id:%d", config.device, config.device_id)
 
     global_batch = 0  # 记录进行到多少batch
-    dev_best_loss = float('inf')
+    dev_best_acc = 0
     last_improve = 0  # 记录上次验证集loss下降的batch数
     flag = False  # 记录是否很久没有效果提升
 
     predict_all = []
     labels_all = []
+    best_model = copy.deepcopy(model)
 
     for epoch in range(config.num_train_epochs):
         logger.info('Epoch [{}/{}]'.format(epoch + 1, config.num_train_epochs))
@@ -121,16 +122,17 @@ def model_train(config, model, train_iter, dev_iter=None):
                 if dev_iter is not None:
                     dev_acc, dev_loss, _ = model_evaluate(config, model, dev_iter)
 
-                    if dev_loss < dev_best_loss:
-                        dev_best_loss = dev_loss
+                    if dev_acc > dev_best_acc:
+                        dev_best_acc = dev_acc
                         improve = '*'
                         last_improve = global_batch
+                        best_model = copy.deepcopy(model)
                     else:
                         improve = ''
 
                 time_dif = time.time() - start_time
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'
-                logger.info(msg.format(global_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
+                logger.info(msg.format(global_batch, loss.cpu().data.item(), train_acc, dev_loss.cpu().data.item(), dev_acc, time_dif, improve))
 
             if config.early_stop and global_batch - last_improve > config.require_improvement:
                 # 验证集loss超过1000batch没下降，结束训练
@@ -139,6 +141,7 @@ def model_train(config, model, train_iter, dev_iter=None):
                 break
         if flag:
             break
+    return best_model
 
 
 def model_train_sentence(config, model, train_iter, dev_iter=None):
@@ -206,9 +209,10 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
 
     global_batch = 0  # 记录进行到多少batch
     #dev_best_loss = float('inf')
-    dev_bset_acc = 0
+    dev_best_acc = 0
     last_improve = 0  # 记录上次验证集loss下降的batch数
     flag = False  # 记录是否很久没有效果提升
+    best_model = copy.deepcopy(model)
 
     predict_all = []
     labels_all = []
@@ -216,11 +220,16 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
     for epoch in range(config.num_train_epochs):
         logger.info('Epoch [{}/{}]'.format(epoch + 1, config.num_train_epochs))
         # scheduler.step() # 学习率衰减
-        for i, (input_ids_1, attention_mask_1, token_type_ids_1,
+        for i, (input_ids, attention_mask, token_type_ids,
+                input_ids_1, attention_mask_1, token_type_ids_1,
                 input_ids_2, attention_mask_2, token_type_ids_2, labels) in enumerate(train_iter):
 
             global_batch += 1
             model.train()
+
+            input_ids = torch.tensor(input_ids).type(torch.LongTensor).to(config.device)
+            attention_mask = torch.tensor(attention_mask).type(torch.LongTensor).to(config.device)
+            token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
 
             input_ids_1 = torch.tensor(input_ids_1).type(torch.LongTensor).to(config.device)
             attention_mask_1 = torch.tensor(attention_mask_1).type(torch.LongTensor).to(config.device)
@@ -235,7 +244,8 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
             else:
                 labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
 
-            outputs, loss = model(input_ids_1, attention_mask_1, token_type_ids_1,
+            outputs, loss = model(input_ids, attention_mask, token_type_ids,
+                                  input_ids_1, attention_mask_1, token_type_ids_1,
                                   input_ids_2, attention_mask_2, token_type_ids_2,
                                   labels_tensor, 1)
 
@@ -259,17 +269,18 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
                 improve = ''
                 if dev_iter is not None:
                     dev_acc, dev_loss, _ = model_evaluate_sentence(config, model, dev_iter)
-                    if dev_acc < dev_best_acc:
+                    if dev_acc > dev_best_acc:
                         dev_best_acc = dev_acc
                         improve = '*'
                         last_improve = global_batch
+                        best_model = copy.deepcopy(model)
                     else:
                         improve = ''
 
 
                 time_dif = time.time() - start_time
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'
-                logger.info(msg.format(global_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
+                logger.info(msg.format(global_batch, loss.cpu().data.item(), train_acc, dev_loss.cpu().data.item(), dev_acc, time_dif, improve))
 
             if config.early_stop and global_batch - last_improve > config.require_improvement:
                 # 验证集loss超过1000batch没下降，结束训练
@@ -278,6 +289,7 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
                 break
         if flag:
             break
+    return best_model
 
 
 def model_multi_train(config, model, train_iter, dev_iter=None):
@@ -344,9 +356,11 @@ def model_multi_train(config, model, train_iter, dev_iter=None):
     logger.info("  Train device:%s, id:%d", config.device, config.device_id)
 
     global_batch = 0  # 记录进行到多少batch
-    dev_best_loss = float('inf')
+    # dev_best_loss = float('inf')
+    dev_best_acc = 0
     last_improve = 0  # 记录上次验证集loss下降的batch数
     flag = False  # 记录是否很久没有效果提升
+    best_model = copy.deepcopy(model)
 
     predict_all = []
     labels_all = []
@@ -367,7 +381,7 @@ def model_multi_train(config, model, train_iter, dev_iter=None):
                 labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
             multi_label_tensor = torch.tensor(multi_label).type(torch.LongTensor).to(config.device)
 
-            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, multi_label_tensor, 4)
+            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, multi_label_tensor, 1)
 
             model.zero_grad()
             loss.backward()
@@ -390,16 +404,17 @@ def model_multi_train(config, model, train_iter, dev_iter=None):
                 if dev_iter is not None:
                     dev_acc, dev_loss, _ = model_multi_evaluate(config, model, dev_iter)
 
-                    if dev_loss < dev_best_loss:
-                        dev_best_loss = dev_loss
+                    if dev_acc > dev_best_acc:
+                        dev_best_acc = dev_acc
                         improve = '*'
                         last_improve = global_batch
+                        best_model = copy.deepcopy(model)
                     else:
                         improve = ''
 
                 time_dif = time.time() - start_time
                 msg = 'Iter: {0:>6},  Train Loss: {1:>5.6f},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.6f},  Val Acc: {4:>6.2%},  Time: {5} {6}'
-                logger.info(msg.format(global_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
+                logger.info(msg.format(global_batch, loss.cpu().data.item(), train_acc, dev_loss.cpu().data.item(), dev_acc, time_dif, improve))
 
             if config.early_stop and global_batch - last_improve > config.require_improvement:
                 # 验证集loss超过1000batch没下降，结束训练
@@ -408,6 +423,7 @@ def model_multi_train(config, model, train_iter, dev_iter=None):
                 break
         if flag:
             break
+    return best_model
 
 
 def model_evaluate(config, model, data_iter, test=False):
@@ -457,8 +473,13 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
     labels_all = []
     total_inputs_error = []
     with torch.no_grad():
-        for i, (input_ids_1, attention_mask_1, token_type_ids_1,
+        for i, (input_ids, attention_mask, token_type_ids,
+                input_ids_1, attention_mask_1, token_type_ids_1,
                 input_ids_2, attention_mask_2, token_type_ids_2, labels) in enumerate(data_iter):
+
+            input_ids = torch.tensor(input_ids).type(torch.LongTensor).to(config.device)
+            attention_mask = torch.tensor(attention_mask).type(torch.LongTensor).to(config.device)
+            token_type_ids = torch.tensor(token_type_ids).type(torch.LongTensor).to(config.device)
 
             input_ids_1 = torch.tensor(input_ids_1).type(torch.LongTensor).to(config.device)
             attention_mask_1 = torch.tensor(attention_mask_1).type(torch.LongTensor).to(config.device)
@@ -473,9 +494,10 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
             else:
                 labels = torch.tensor(labels).type(torch.LongTensor).to(config.device) if not test else None
 
-            outputs, loss = model(input_ids_1, attention_mask_1, token_type_ids_1,
-                                  input_ids_2, attention_mask_2, token_type_ids_2,
-                                  labels, 1)
+            outputs, loss = model(input_ids, attention_mask, token_type_ids,
+                                input_ids_1, attention_mask_1, token_type_ids_1,
+                                input_ids_2, attention_mask_2, token_type_ids_2,
+                                labels, 1)
 
             outputs = outputs.cpu().detach().numpy()
             predic = list(np.array(outputs >= 0.5, dtype='int'))
@@ -577,10 +599,13 @@ def model_test(config, model, test_iter):
     logger.info("Time usage:%.6fs", time_dif)
 
 
-def model_save(config, model):
+def model_save(config, model, name=None):
     if not os.path.exists(config.save_path):
         os.makedirs(config.save_path)
-    file_name = os.path.join(config.save_path, config.models_name+'.pkl')
+    if name is not None:
+        file_name = os.path.join(config.save_path, name + '.pkl')
+    else:
+        file_name = os.path.join(config.save_path, config.models_name+'.pkl')
     torch.save(model.state_dict(), file_name)
     logger.info("model saved, path: %s", file_name)
 
