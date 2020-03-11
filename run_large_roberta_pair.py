@@ -2,7 +2,6 @@ from processors.TryDataProcessor import TryDataProcessor
 from transformers import BertTokenizer
 from models.bert import Bert, BertSentence
 from sklearn import metrics
-import json
 
 from utils.k_fold import cross_validation
 from utils.augment import DataAugment
@@ -20,8 +19,8 @@ class NewsConfig:
 
     def __init__(self):
         absdir = os.path.dirname(os.path.abspath(__file__))
-        _pretrain_path = '/pretrain_models/ERNIE'  
-        _config_file = 'bert_config.json' 
+        _pretrain_path = '/pretrain_models/roberta_large_pair'
+        _config_file = 'config.json'
         _model_file = 'pytorch_model.bin'
         _tokenizer_file = 'vocab.txt'
         _data_path = '/real_data'
@@ -29,10 +28,10 @@ class NewsConfig:
         # 使用的模型
         self.use_model = 'bert'
 
-        self.models_name = 'ernie'
+        self.models_name = 'robert_large_pair'
         self.task = 'base_real_data'
-        self.config_file =[os.path.join(absdir + _pretrain_path, _config_file)]
-        self.model_name_or_path = [os.path.join(absdir + _pretrain_path, _model_file)]
+        self.config_file = [os.path.join(absdir + _pretrain_path, _config_file)]      #修改
+        self.model_name_or_path = [os.path.join(absdir + _pretrain_path, _model_file)]    #修改
         self.tokenizer_file = os.path.join(absdir + _pretrain_path, _tokenizer_file)
         self.data_dir = absdir + _data_path
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')              # 设备
@@ -46,26 +45,26 @@ class NewsConfig:
         self.dev_num_examples = 0
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
-        self.hidden_size = [768]
+        self.hidden_size = [1024]           #修改
         self.early_stop = False
         self.require_improvement = 800 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
-        self.num_train_epochs = 5                                                              # epoch数
-        self.batch_size = 64                                                                      # mini-batch大小
+        self.num_train_epochs = 5                                                               # epoch数
+        self.batch_size = 16                                                                     # mini-batch大小
         self.pad_size = 64                                                                      # 每句话处理成的长度
-        self.learning_rate = 2e-5                                                               # 学习率
+        self.learning_rate = 1e-6                                                              # 学习率
         self.head_learning_rate = 1e-3                                                          # 后面的分类层的学习率
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
         self.k_fold = 5
         # logging
-        self.is_logging2file = False
+        self.is_logging2file = True
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' + self.models_name
         # save
         self.load_save_model = False
         self.save_path = absdir + '/model_saved' + '/' + self.task + '/' + self.models_name
-        self.seed = 20
+        self.seed = 369
         # 增强数据
-        self.data_augment = True
+        self.data_augment = False
         self.data_augment_args = 'transmit'
         # Bert的后几层加权输出
         self.weighted_layer_tag = False
@@ -77,7 +76,7 @@ class NewsConfig:
         # 说明
         self.z_test = 'multi-sample-drop:1'
         # 差分学习率
-        self.diff_learning_rate = False
+        self.diff_learning_rate = True
         # multi-task
         self.multi_loss_tag = False
         self.multi_loss_weight = 0.1
@@ -86,7 +85,7 @@ class NewsConfig:
         # train pattern
         self.pattern = 'predict'   # [predict, full_train, k_fold, k_volt, k_volt_submit]
         # preprocessing
-        self.stop_word_valid = True
+        self.stop_word_valid = False
         self.medicine_valid = False
         self.symptom_valid = False
         self.medicine_replace_word = ''
@@ -128,18 +127,16 @@ def thucNews_task(config):
         train_enhancement=DataAugment().dataAugment if config.data_augment else None,
         enhancement_arg=config.data_augment_args,
         test_examples=test_examples)
-    logging.info("dev_evaluate: {}".format(dev_evaluate))
+    logging.info(dev_evaluate)
 
     # volt for predict
     if config.pattern == 'k_volt':
         dev_labels = processor.get_dev_labels(config.data_dir)
         final_pred = k_fold_volt_predict(predict_label)
         final_acc = metrics.accuracy_score(dev_labels, final_pred)
-        logging.info('final acc is :{}'.format(final_acc))
+        logger.info('final acc is :{}'.format(final_acc))
     elif config.pattern == 'full_train':
         model_save(config, model_example)
-
-    return dev_evaluate
 
 
 if __name__ == '__main__':
@@ -154,24 +151,6 @@ if __name__ == '__main__':
 
     logging.basicConfig(filename=logging_filename, format='%(levelname)s: %(message)s', level=logging.INFO)
 
-    # 参数搜索
-    # search_result = {}
-    # diff_learning_rate_status = [False, True]
-    # rand_seed = [1, 2, 3, 5, 20, 40, 60, 80, 330, 1874, 1996, 2020]
-    # for diff_s in diff_learning_rate_status:
-    #     config.diff_learning_rate = diff_s
-    #     diff_learning_rate_result = {}
-    #     for seed in rand_seed:
-    #         config.seed = seed
-    #         logging.info("diff_learning_rate: {} seed: {}".format(diff_s, seed))
-    #         dev_evaluate = thucNews_task(config)
-    #         logging.info("diff_learning_rate: {} seed: {} acc: {}".format(diff_s, seed, dev_evaluate))
-    #         diff_learning_rate_result[seed] = dev_evaluate
-    #     values = np.array(list(diff_learning_rate_result.values()))
-    #     diff_learning_rate_result['mean'] = values.mean()
-    #     diff_learning_rate_result['std'] = values.std()
-    #     search_result[diff_s] = diff_learning_rate_result
-    # logging.info(json.dumps(search_result))
     thucNews_task(config)
 
 

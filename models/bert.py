@@ -25,10 +25,10 @@ def compute_loss(outputs, labels, loss_method='binary'):
 
 class Bert(nn.Module):
 
-    def __init__(self, config):
+    def __init__(self, config, num=0):
         super(Bert, self).__init__()
         model_config = BertConfig.from_pretrained(
-            config.config_file,
+            config.config_file[num],
             num_labels=config.num_labels,
             finetuning_task=config.task,
         )
@@ -36,18 +36,18 @@ class Bert(nn.Module):
         self.loss_method = config.loss_method
 
         self.bert = BertModel.from_pretrained(
-            config.model_name_or_path,
+            config.model_name_or_path[num],
             config=model_config,
         )
         if config.requires_grad:
             for param in self.bert.parameters():
                 param.requires_grad = True
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-
+        self.hidden_size = config.hidden_size[num]
         if self.loss_method in ['binary', 'focal_loss', 'ghmc']:
-            self.classifier = nn.Linear(config.hidden_size, 1)
+            self.classifier = nn.Linear(self.hidden_size, 1)
         else:
-            self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+            self.classifier = nn.Linear(self.hidden_size, self.num_labels)
 
         # add the weighted
         self.hidden_weight = config.weighted_layer_tag         # must modify the config.json
@@ -56,7 +56,6 @@ class Bert(nn.Module):
         
         if self.hidden_weight:
             self.weight_layer = config.weighted_layer_num
-            #self.weight = torch.zeros(self.weight_layer).to(config.device)
             self.weight = torch.nn.Parameter(torch.FloatTensor(self.weight_layer), requires_grad=True)
             self.softmax = nn.Softmax()
             self.pooler = nn.Sequential(nn.Linear(config.hidden_size, config.hidden_size), nn.Tanh())
@@ -64,7 +63,7 @@ class Bert(nn.Module):
         elif self.pooling_tag:
             self.maxPooling = nn.MaxPool1d(64)
             self.avgPooling = nn.AvgPool1d(64)
-            self.pooler = nn.Sequential(nn.Linear(768*3, 768), nn.Tanh())
+            self.pooler = nn.Sequential(nn.Linear(self.hidden_size*3, self.hidden_size), nn.Tanh())
         
         if self.multi_loss_tag:
             self.multi_loss_weight = config.multi_loss_weight                           # 定义权重

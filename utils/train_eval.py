@@ -430,6 +430,7 @@ def model_evaluate(config, model, data_iter, test=False):
     model.eval()
     loss_total = 0
     predict_all = []
+    predict_prob = []
     labels_all = []
     total_inputs_error = []
     with torch.no_grad():
@@ -448,7 +449,9 @@ def model_evaluate(config, model, data_iter, test=False):
 
             outputs = outputs.cpu().detach().numpy()
             predic = list(np.array(outputs >= 0.5, dtype='int'))
+
             predict_all.extend(predic)
+            predict_prob.extend(list(outputs))
 
             if not test:
                 labels = labels.data.cpu().numpy()
@@ -460,6 +463,8 @@ def model_evaluate(config, model, data_iter, test=False):
                 total_inputs_error.extend(classify_error)
 
     if test:
+        if config.out_prob:
+            return predict_prob
         return predict_all
     acc = metrics.accuracy_score(labels_all, predict_all)
     return acc, loss_total / len(data_iter), total_inputs_error
@@ -470,6 +475,7 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
     model.eval()
     loss_total = 0
     predict_all = []
+    predict_prob = []
     labels_all = []
     total_inputs_error = []
     with torch.no_grad():
@@ -502,6 +508,7 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
             outputs = outputs.cpu().detach().numpy()
             predic = list(np.array(outputs >= 0.5, dtype='int'))
             predict_all.extend(predic)
+            predict_prob.extend(list(outputs))
 
             if not test:
                 labels = labels.data.cpu().numpy()
@@ -514,6 +521,8 @@ def model_evaluate_sentence(config, model, data_iter, test=False):
                 total_inputs_error.extend(classify_error)
 
     if test:
+        if config.out_prob:
+            return predict_prob
         return predict_all
     acc = metrics.accuracy_score(labels_all, predict_all)
     return acc, loss_total / len(data_iter), total_inputs_error
@@ -523,6 +532,7 @@ def model_multi_evaluate(config, model, data_iter, test=False):
     model.eval()
     loss_total = 0
     predict_all = []
+    predict_prob = []
     labels_all = []
     total_inputs_error = []
     with torch.no_grad():
@@ -543,6 +553,7 @@ def model_multi_evaluate(config, model, data_iter, test=False):
             outputs = outputs.cpu().detach().numpy()
             predic = list(np.array(outputs >= 0.5, dtype='int'))
             predict_all.extend(predic)
+            predict_prob.extend(list(outputs))
 
             if not test:
                 labels = labels.data.cpu().numpy()
@@ -554,6 +565,8 @@ def model_multi_evaluate(config, model, data_iter, test=False):
                 total_inputs_error.extend(classify_error)
 
     if test:
+        if config.out_prob:
+            return predict_prob
         return predict_all
     acc = metrics.accuracy_score(labels_all, predict_all)
     return acc, loss_total / len(data_iter), total_inputs_error
@@ -610,9 +623,9 @@ def model_save(config, model, name=None):
     logger.info("model saved, path: %s", file_name)
 
 
-def model_load(config, model, device='cpu'):
+def model_load(config, model, num=0 ,device='cpu'):
     device_id = config.device_id
-    file_name = os.path.join(config.save_path, config.models_name+'.pkl')
+    file_name = os.path.join(config.save_path[num], config.models_name[num]+'.pkl')
     logger.info('loading model: %s', file_name)
     model.load_state_dict(torch.load(file_name,
                                      map_location=device if device == 'cpu' else "{}:{}".format(device, device_id)))

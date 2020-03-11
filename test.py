@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 import argparse
 import json
 import pandas as pd
+import numpy as np
 
 MODEL_CLASSES = {
    'bert':  Bert,
@@ -31,23 +32,29 @@ class NewsConfig:
 
     def __init__(self, arg):
         absdir = os.path.dirname(os.path.abspath(__file__))
-        _pretrain_path = '/pretrain_models/ERNIE'
-        _config_file = 'bert_config.json'
-        _model_file = 'pytorch_model.bin'
-        _tokenizer_file = 'vocab.txt'
+        _pretrain_path = ['/pretrain_models/ERNIE', '/pretrain_models/chinese_roberta_wwm_large_ext_pytorch']
+        _config_file = ['bert_config.json', 'bert_config.json']
+        _model_file = ['pytorch_model.bin', 'pytorch_model.bin']
+        _tokenizer_file = ['vocab.txt', 'vocab.txt']
         _data_path = '/real_data'
 
         # 使用的模型
         self.use_model = 'bert'
 
-        self.models_name = 'ernie'
+        self.models_name = ['ernie', 'roberta_wwm_large_ext_pytorch']
         self.task = 'base_real_data'
-        self.config_file = os.path.join(absdir + _pretrain_path, _config_file)
-        self.model_name_or_path = os.path.join(absdir + _pretrain_path, _model_file)
-        self.tokenizer_file = os.path.join(absdir + _pretrain_path, _tokenizer_file)
+        self.config_file = [os.path.join(absdir + pretrain_path_try, config_file_try)
+                            for pretrain_path_try, config_file_try in zip(_pretrain_path, _config_file)]
+
+        self.model_name_or_path = [os.path.join(absdir + pretrain_path_try, model_file_try)
+                                   for pretrain_path_try, model_file_try in zip(_pretrain_path, _model_file)]
+
+        self.tokenizer_file = [os.path.join(absdir + pretrain_path_try, tokenizer_file_try)
+                               for pretrain_path_try, tokenizer_file_try in zip(_pretrain_path, _tokenizer_file)]
+
         self.data_dir = absdir + _data_path
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')              # 设备
-        self.device_id = 0
+        self.device_id = 3
         self.do_lower_case = True
         self.label_on_test_set = True
         self.requires_grad = True
@@ -57,7 +64,7 @@ class NewsConfig:
         self.dev_num_examples = 0
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
-        self.hidden_size = 768
+        self.hidden_size = [768, 1024]
         self.require_improvement = 700 if self.use_model == 'bert' else 1000                    # 若超过1000batch效果还没提升，则提前结束训练
         self.num_train_epochs = 8                                                               # epoch数
         self.batch_size = arg.bs                                                                # mini-batch大小
@@ -67,11 +74,11 @@ class NewsConfig:
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
         self.k_fold = 5
         # logging
-        self.is_logging2file = True
+        self.is_logging2file = False
         self.logging_dir = absdir + '/logging' + '/' + self.task + '/' 
         # save
         self.load_save_model = True   #load the saved model
-        self.save_path = absdir + '/model_saved' + '/' + self.task +'/' + self.models_name + '/'
+        self.save_path = [absdir + '/model_saved' + '/' + self.task +'/' + model_name_try + '/' for model_name_try in self.models_name]
         self.dev_split = 0.1
         self.test_split = 0.1
         self.seed = 369
@@ -112,67 +119,111 @@ class NewsConfig:
         self.symptom_valid = False
         self.medicine_replace_word = ''
         self.symptom_replace_word = ''
+        #multi model
+        self.reverse_tag = False
+        #multi_model
+        self.multi_model = True
+        self.model_num = 2
+        self.out_prob = True
+
+def sentence_reverse(test_examples):
+    reverse_test_examples = []
+    for example in test_examples:
+        try_example = [example[1], example[0], example[2], example[3]]
+    reverse_test_examples.append(try_example)
+    return reverse_test_examples
+
+def combined_result(all_result, weight=None, type='average'):
+    def average_result(all_result):  #shape:[num_model, axis]
+        all_result = np.asarray(all_result, dtype=np.float)
+        return np.mean(all_result, axis=0)
+
+    def weighted_result(all_result, weight):
+        all_result = np.asarray(all_result, dtype=np.float)
+        return np.average(all_result, axis=0, weights=weight)
+
+    if type == 'weighted':
+        return weighted_result(all_result, weight)
+    elif type == 'average':
+        return average_result(all_result)
+    else:
+        raise ValueError("the combined type is incorrect")
+
 
 
 def thucNews_task(config):
 
-    def save_json(labels, path):
-        with open(path, 'w', encoding='utf-8') as fw:
-            fw.write('{' + '\n')
-            for idx, label in enumerate(labels):
-                slice = str("[{\"id\":") + str(idx) + str(",\"label\":") + str(label) + str("}],") + '\n'
-                fw.write(slice)
-            fw.write('}' + '\n')
-        return None
-
     random_seed(config.seed)
+    if config.device.type == 'cuda':
+        torch.cuda.set_device(config.device_id)
 
-    tokenizer = BertTokenizer.from_pretrained(config.tokenizer_file,
-                                               do_lower_case=config.do_lower_case)
     processor = TryDataProcessor(config)
     config.class_list = processor.get_labels()
     config.num_labels = len(config.class_list)
 
     test_examples = processor.get_test_examples(config.test_data_dir)      #test_data_dir是全路径
+    if config.reverse_tag:  #交换
+        reverse_test_examples = sentence_reverse(test_examples)
+        all_examples = [test_examples, reverse_test_examples]
+    else:
+        all_examples = [test_examples]
     cur_model = MODEL_CLASSES[config.use_model]
-    if config.model_vote_tag:
+    if config.multi_model:         #多模型
         all_predict = []
-        for i in range(config.k_fold):
-            model = cur_model(config)
-            model_load(config, model, i+1, device='cpu')
+        for i in range(config.model_num):
+            tokenizer = BertTokenizer.from_pretrained(config.tokenizer_file[i],
+                                                      do_lower_case=config.do_lower_case)
+            model = cur_model(config, num=i)       #使用索引拿到相关参数
+            model_load(config, model, num=i, device='cpu')
             model.to(config.device)
             convert_to_features, build_data_set, _, evaluate_module = MODEL_CLASSES_[config.use_model]
-            test_features = convert_to_features(
-            examples=test_examples,
-            tokenizer=tokenizer,
-            label_list=config.class_list,
-            second_label_list=config.multi_class_list if config.multi_loss_tag else None,
-            max_length=config.pad_size,
-            data_type='test'
-        )
-            test_dataset = build_data_set(test_features)
-            test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
-            predict_label = evaluate_module(config, model, test_loader, test=True)
-            all_predict.append(predict_label)
-        print("use the {} model".format(len(all_predict)))
-        predict_label = k_fold_volt_predict(all_predict)
+            single_model_predict = []
+            for examples in all_examples:
+                test_features = convert_to_features(
+                examples=examples,
+                tokenizer=tokenizer,
+                label_list=config.class_list,
+                second_label_list=config.multi_class_list if config.multi_loss_tag else None,
+                max_length=config.pad_size,
+                data_type='test')
+                test_dataset = build_data_set(test_features)
+                test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
+                predict_label = evaluate_module(config, model, test_loader, test=True)
+                single_model_predict.append(predict_label)
+            single_model_predict = combined_result(single_model_predict, type='average')  #计算reverse平均
+            all_predict.append(single_model_predict)
 
-    else:
+        print("use the {} model".format(len(all_predict)))
+        if config.model_vote_tag:  #使用投票
+            all_predict = np.asarray(all_predict>0.5, dtype=np.int)
+            predict_label = k_fold_volt_predict(all_predict)
+        else:  #使用加权平均
+            predict_label = combined_result(all_predict, type='weighted', weight=[0.5, 0.5])     #使用概率加权或平均
+            predict_label = np.asarray(predict_label>0.5, dtype=np.int)
+
+    else:  #单模
+        tokenizer = BertTokenizer.from_pretrained(config.tokenizer_file[0],
+                                                  do_lower_case=config.do_lower_case)
         model = cur_model(config)
         model_load(config, model, device='cpu')
         model.to(config.device)
-        convert_to_features, build_data_set, _, evaluate_module = MODEL_CLASSES_[config.use_model]
-        test_features = convert_to_features(
-            examples=test_examples,
-            tokenizer=tokenizer,
-            label_list=config.class_list,
-            second_label_list=config.multi_class_list if config.multi_loss_tag else None,
-            max_length=config.pad_size,
-            data_type='test'
-        )
-        test_dataset = build_data_set(test_features)
-        test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
-        predict_label = evaluate_module(config, model, test_loader, test=True)
+        single_model_predict = []
+        for examples in all_examples:
+            convert_to_features, build_data_set, _, evaluate_module = MODEL_CLASSES_[config.use_model]
+            test_features = convert_to_features(
+                examples=examples,
+                tokenizer=tokenizer,
+                label_list=config.class_list,
+                second_label_list=config.multi_class_list if config.multi_loss_tag else None,
+                max_length=config.pad_size,
+                data_type='test'
+            )
+            test_dataset = build_data_set(test_features)
+            test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
+            predict_label = evaluate_module(config, model, test_loader, test=True)
+            single_model_predict.append(predict_label)
+        predict_label = combined_result(single_model_predict, type='average')
+        predict_label = np.asarray(predict_label > 0.5, dtype=np.int)
 
     index = list(pd.read_csv(config.test_data_dir, encoding='utf-8')['id'])
     df_upload = pd.DataFrame({'id':index, 'label':predict_label})
