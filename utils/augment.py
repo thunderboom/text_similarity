@@ -187,7 +187,7 @@ class DataAugment:
             elif arg == 'pseudo':
                 new_data = self.Pseudolabel()
             elif arg == 'transmit':
-                new_data = self.sentence_set_pair(df_train, num=3000)
+                new_data = self.sentence_set_pair(df_train, num=8000)
             else:
                 raise ValueError("The input must choose from ['symmetric','themword','pseudo', 'sameword']")
             if idx == 0:

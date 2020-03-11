@@ -117,7 +117,7 @@ def model_train(config, model, train_iter, dev_iter=None):
                 labels_all = []
 
                 # dev 数据
-                dev_acc, dev_loss = 0, 0
+                dev_acc, dev_loss = train_acc, loss
                 improve = ''
                 if dev_iter is not None:
                     dev_acc, dev_loss, _ = model_evaluate(config, model, dev_iter)
@@ -265,7 +265,7 @@ def model_train_sentence(config, model, train_iter, dev_iter=None):
                 labels_all = []
 
                 # dev 数据
-                dev_acc, dev_loss = 0, 0
+                dev_acc, dev_loss = train_acc, loss
                 improve = ''
                 if dev_iter is not None:
                     dev_acc, dev_loss, _ = model_evaluate_sentence(config, model, dev_iter)
@@ -399,7 +399,7 @@ def model_multi_train(config, model, train_iter, dev_iter=None):
                 labels_all = []
 
                 # dev 数据
-                dev_acc, dev_loss = 0, 0
+                dev_acc, dev_loss = train_acc, loss
                 improve = ''
                 if dev_iter is not None:
                     dev_acc, dev_loss, _ = model_multi_evaluate(config, model, dev_iter)

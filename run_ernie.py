@@ -48,7 +48,7 @@ class NewsConfig:
         self.hidden_size = 768
         self.early_stop = False
         self.require_improvement = 800 if self.use_model == 'bert' else 5000                    # 若超过1000batch效果还没提升，则提前结束训练
-        self.num_train_epochs = 10                                                               # epoch数
+        self.num_train_epochs = 5                                                               # epoch数
         self.batch_size = 64                                                                      # mini-batch大小
         self.pad_size = 64                                                                      # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
@@ -64,7 +64,7 @@ class NewsConfig:
         self.save_path = absdir + '/model_saved' + '/' + self.task + '/' + self.models_name
         self.seed = 369
         # 增强数据
-        self.data_augment = False
+        self.data_augment = True
         self.data_augment_args = 'transmit'
         # Bert的后几层加权输出
         self.weighted_layer_tag = False
@@ -83,11 +83,11 @@ class NewsConfig:
         self.multi_class_list = []   # 第二任务标签
         self.multi_num_labels = 0    # 第二任务标签 数量
         # train pattern
-        self.pattern = 'predict'   # [predict, full_train, k_fold, k_volt, k_volt_submit]
+        self.pattern = 'full_train'   # [predict, full_train, k_fold, k_volt, k_volt_submit]
         # preprocessing
         self.stop_word_valid = True
-        self.medicine_valid = True
-        self.symptom_valid = True
+        self.medicine_valid = False
+        self.symptom_valid = False
         self.medicine_replace_word = ''
         self.symptom_replace_word = ''
 
@@ -135,8 +135,8 @@ def thucNews_task(config):
         final_pred = k_fold_volt_predict(predict_label)
         final_acc = metrics.accuracy_score(dev_labels, final_pred)
         logger.info('final acc is :{}'.format(final_acc))
-
-    # model_save(config, model_example)
+    elif config.pattern == 'full_train':
+        model_save(config, model_example)
 
 
 if __name__ == '__main__':

@@ -239,7 +239,6 @@ def cross_validation(
         return None, dev_evaluate, dev_predict_set
     elif pattern == 'full_train':
         train_examples.extend(dev_examples)
-        np.random.shuffle(train_examples)
         model_example, _, _ = train_dev_test(
             config=config,
             train_data=train_examples,
@@ -247,8 +246,8 @@ def cross_validation(
             tokenizer=tokenizer,
             train_enhancement=train_enhancement,
             enhancement_arg=enhancement_arg,
-            dev_data=None,
-            test_examples=test_examples)
+            dev_data=dev_examples,
+            test_examples=None)
         return model_example, None, None
     elif pattern == 'predict':
         model_example, dev_acc, predict_label = train_dev_test(
