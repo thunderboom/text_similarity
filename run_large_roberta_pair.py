@@ -28,14 +28,14 @@ class NewsConfig:
         # 使用的模型
         self.use_model = 'bert'
 
-        self.models_name = 'robert_large_pair'
+        self.models_name = 'roberta_large_pair'
         self.task = 'base_real_data'
         self.config_file = [os.path.join(absdir + _pretrain_path, _config_file)]      #修改
         self.model_name_or_path = [os.path.join(absdir + _pretrain_path, _model_file)]    #修改
         self.tokenizer_file = os.path.join(absdir + _pretrain_path, _tokenizer_file)
         self.data_dir = absdir + _data_path
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')              # 设备
-        self.device_id = 2
+        self.device_id = 3
         self.do_lower_case = True
         self.label_on_test_set = True
         self.requires_grad = True
@@ -51,7 +51,7 @@ class NewsConfig:
         self.num_train_epochs = 5                                                               # epoch数
         self.batch_size = 16                                                                     # mini-batch大小
         self.pad_size = 64                                                                      # 每句话处理成的长度
-        self.learning_rate = 1e-6                                                              # 学习率
+        self.learning_rate = 8e-6                                                              # 学习率
         self.head_learning_rate = 1e-3                                                          # 后面的分类层的学习率
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
@@ -76,20 +76,22 @@ class NewsConfig:
         # 说明
         self.z_test = 'multi-sample-drop:1'
         # 差分学习率
-        self.diff_learning_rate = True
+        self.diff_learning_rate = False
         # multi-task
         self.multi_loss_tag = False
         self.multi_loss_weight = 0.1
         self.multi_class_list = []   # 第二任务标签
         self.multi_num_labels = 0    # 第二任务标签 数量
         # train pattern
-        self.pattern = 'predict'   # [predict, full_train, k_fold, k_volt, k_volt_submit]
+        self.pattern = 'full_train'   # [predict, full_train, k_fold, k_volt, k_volt_submit]
         # preprocessing
         self.stop_word_valid = False
         self.medicine_valid = False
         self.symptom_valid = False
         self.medicine_replace_word = ''
         self.symptom_replace_word = ''
+        # prob
+        self.out_prob = True
 
 
 def thucNews_task(config):

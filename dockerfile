@@ -19,15 +19,18 @@ COPY real_data/* /real_data/
 #RUN mkdir -p /pretrain_models/chinese_roberta_wwm_large_ext_pytorch
 #COPY pretrain_models/chinese_roberta_wwm_large_ext_pytorch/* /pretrain_models/chinese_roberta_wwm_large_ext_pytorch/
 
-
 RUN mkdir -p /pretrain_models/ERNIE
 COPY pretrain_models/ERNIE/* /pretrain_models/ERNIE/
+
+RUN mkdir -p /pretrain_models/roberta_large_pair
+COPY pretrain_models/roberta_large_pair/* /pretrain_models/roberta_large_pair/
 
 RUN mkdir -p /processors
 COPY processors/* /processors/
 RUN mkdir -p /utils
 COPY utils/* /utils/
 COPY test.py /
+
 #RUN mkdir -p model_saved/base_real_data/base_bert
 #RUN mkdir -p model_saved/base_try_data
 
@@ -37,6 +40,8 @@ COPY test.py /
 RUN mkdir -p model_saved/base_real_data/ernie
 COPY model_saved/base_real_data/ernie/* /model_saved/base_real_data/ernie/
 
+RUN mkdir -p model_saved/base_real_data/roberta_large_pair
+COPY model_saved/base_real_data/roberta_large_pair/* /model_saved/base_real_data/roberta_large_pair/
 
 COPY run.sh /
 COPY requirements.txt /
