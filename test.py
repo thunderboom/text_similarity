@@ -2,16 +2,13 @@ import logging
 from processors.TryDataProcessor import TryDataProcessor
 from transformers import BertTokenizer
 from models.bert import Bert, BertSentence
-import os
-from utils.k_fold import cross_validation
-from utils.augment import DataAugment
 from utils.train_eval import *
 from utils.utils import *
 from torch.utils.data import DataLoader
 import argparse
-import json
 import pandas as pd
 import numpy as np
+import time
 
 MODEL_CLASSES = {
    'bert':  Bert,
@@ -32,16 +29,17 @@ class NewsConfig:
 
     def __init__(self, arg):
         absdir = os.path.dirname(os.path.abspath(__file__))
-        _pretrain_path = ['/pretrain_models/ERNIE', '/pretrain_models/roberta_large_pair']
-        _config_file = ['bert_config.json', 'config.json']
-        _model_file = ['pytorch_model.bin', 'pytorch_model.bin']
-        _tokenizer_file = ['vocab.txt', 'vocab.txt']
+        _pretrain_path = ['/pretrain_models/ERNIE', '/pretrain_models/roberta_large_pair',
+                          '/pretrain_models/chinese_roberta_wwm_large_ext_pytorch']
+        _config_file = ['bert_config.json', 'config.json', 'bert_config.json']
+        _model_file = ['pytorch_model.bin', 'pytorch_model.bin', 'pytorch_model.bin']
+        _tokenizer_file = ['vocab.txt', 'vocab.txt', 'vocab.txt']
         _data_path = '/real_data'
 
         # 使用的模型
         self.use_model = 'bert'
 
-        self.models_name = ['ernie', 'roberta_large_pair']
+        self.models_name = ['ernie', 'roberta_large_pair', 'roberta_wwm_large']
         self.task = 'base_real_data'
         self.config_file = [os.path.join(absdir + pretrain_path_try, config_file_try)
                             for pretrain_path_try, config_file_try in zip(_pretrain_path, _config_file)]
@@ -64,7 +62,7 @@ class NewsConfig:
         self.dev_num_examples = 0
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
-        self.hidden_size = [768, 1024]
+        self.hidden_size = [768, 1024, 1024]
         self.require_improvement = 700 if self.use_model == 'bert' else 1000                    # 若超过1000batch效果还没提升，则提前结束训练
         self.num_train_epochs = 8                                                               # epoch数
         self.batch_size = arg.bs                                                                # mini-batch大小
@@ -79,6 +77,7 @@ class NewsConfig:
         # save
         self.load_save_model = True   #load the saved model
         self.save_path = [absdir + '/model_saved' + '/' + self.task +'/' + model_name_try + '/' for model_name_try in self.models_name]
+        self.save_file = ['ernie', 'roberta_large_pair', 'roberta_wwm_large']
         self.dev_split = 0.1
         self.test_split = 0.1
         self.seed = 369
@@ -123,7 +122,7 @@ class NewsConfig:
         self.reverse_tag = True
         #multi_model
         self.multi_model = True
-        self.model_num = 2
+        self.model_num = 3
         self.out_prob = True
 
 
@@ -154,9 +153,11 @@ def combined_result(all_result, weight=None, type='average'):
 
 def thucNews_task(config):
 
+    print('cude: {}'.format(torch.cuda.is_available()))
+    print('cur device {}'.format(config.device.type))
+    start_time = time.time()
+
     random_seed(config.seed)
-    if config.device.type == 'cuda':
-        torch.cuda.set_device(config.device_id)
 
     processor = TryDataProcessor(config)
     config.class_list = processor.get_labels()
@@ -169,9 +170,12 @@ def thucNews_task(config):
     else:
         all_examples = [test_examples]
     cur_model = MODEL_CLASSES[config.use_model]
+    print('loading data time: {:.6f}s'.format(time.time()-start_time))
     if config.multi_model:         #多模型
         all_predict = []
         for i in range(config.model_num):
+            model_time_s = time.time()
+            print('the model of {} starting...'.format(config.models_name[i]))
             tokenizer = BertTokenizer.from_pretrained(config.tokenizer_file[i],
                                                       do_lower_case=config.do_lower_case)
             model = cur_model(config, num=i)       #使用索引拿到相关参数
@@ -179,7 +183,9 @@ def thucNews_task(config):
             model.to(config.device)
             convert_to_features, build_data_set, _, evaluate_module = MODEL_CLASSES_[config.use_model]
             single_model_predict = []
-            for examples in all_examples:
+            print("\tloading pre-train model, cost time {:.6f}s".format(time.time()-model_time_s))
+            for e_idx, examples in enumerate(all_examples):
+                example_time = time.time()
                 test_features = convert_to_features(
                 examples=examples,
                 tokenizer=tokenizer,
@@ -191,16 +197,18 @@ def thucNews_task(config):
                 test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
                 predict_label = evaluate_module(config, model, test_loader, test=True)
                 single_model_predict.append(predict_label)
+                print("\ttest dataset:{}, cost time {:.6f}s, total time {:.6f}s".format(e_idx+1, time.time()-example_time, time.time()-start_time))
+            print("# time {:.6f}s, total time {:.6f}s".format(time.time() - model_time_s, time.time()-start_time))
             single_model_predict = combined_result(single_model_predict, type='average')  #计算reverse平均
             # print('single_model_predict:', single_model_predict)
             all_predict.append(single_model_predict)
 
-        print("use the {} model".format(len(all_predict)))
+        # print("use the {} model".format(len(all_predict)))
         if config.model_vote_tag:  #使用投票
             all_predict = np.asarray(all_predict > 0.4, dtype=np.int)
             predict_label = k_fold_volt_predict(all_predict)
         else:  #使用加权平均
-            predict_label = combined_result(all_predict, type='weighted', weight=[0.5, 0.5])     #使用概率加权或平均
+            predict_label = combined_result(all_predict, type='average')
             predict_label = np.asarray(predict_label > 0.4, dtype=np.int)
 
     else:  #单模
@@ -230,6 +238,7 @@ def thucNews_task(config):
     index = list(pd.read_csv(config.test_data_dir, encoding='utf-8')['id'])
     df_upload = pd.DataFrame({'id':index, 'label':predict_label})
     df_upload.to_csv(config.save_data_path, index=False)
+    print('\ntotal time {:.6f}s'.format(time.time()-start_time))
     
 
 if __name__ == '__main__':

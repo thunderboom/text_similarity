@@ -6,8 +6,20 @@ import numpy as np
 
 class DataAugment:
     def __init__(self):
-        self.columns = ['question1', 'question2', 'label', 'category']
+        self.columns = ['query1', 'query2', 'label', 'category']
         self.save_path = '../try_data/augment.csv'
+        self.new_catergory_path = './real_data/new_category.csv'
+
+    def category_external_data(self):
+        """category path"""
+        df = pd.read_csv(self.new_catergory_path)
+        return df
+
+    def chips2019_external_data(self):
+        """chip2019"""
+        df = pd.read_csv(self.new_catergory_path)
+        return df
+
 
     def sentence_set_pair(self, df_train, num=None):
         questions1 = []
@@ -15,11 +27,11 @@ class DataAugment:
         labels = []
         categories = []
         column1, column2, column3, column4 = self.columns[0], self.columns[1], self.columns[2], self.columns[3]
-        query_1_list = list(set(df_train['question1']))
+        query_1_list = list(set(df_train['query1']))
         for query_tag in query_1_list:
-            df_query = df_train[df_train['question1']==query_tag]
-            query_same_set = df_query[df_query['label']==1]['question2'].tolist()
-            query_diff_set = df_query[df_query['label']==0]['question2'].tolist()
+            df_query = df_train[df_train['query1']==query_tag]
+            query_same_set = df_query[df_query['label']==1]['query2'].tolist()
+            query_diff_set = df_query[df_query['label']==0]['query2'].tolist()
             category = list(df_query['category'])[0]
             if len(query_same_set) >= 1:   #如果有与query1相似的问题
                 if len(query_diff_set) >= 1:   #类别间
@@ -144,7 +156,7 @@ class DataAugment:
 
     def symmetric_sentence(self, df_train):
         """对称性"""
-        column1, column2 = 'question1', 'question2'
+        column1, column2 = 'query1', 'query2'
         question1 = list(df_train[column1])
         df_train[column1] = list(df_train[column2])
         df_train[column2] = question1
@@ -160,25 +172,29 @@ class DataAugment:
             question2.append(row[1])
             label.append(int(row[2]))
             category.append(row[3])
-        return pd.DataFrame({'question1':question1, 'question2':question2, 'label':label, 'category':category})
+        return pd.DataFrame({'query1':question1, 'query2':question2, 'label':label, 'category':category})
 
     def dataframe_list(self, dataframe):
         data_list = []
         for idx, row in dataframe.iterrows():
-            row_list = [row['question1'], row['question2'], str(row['label']), row['category']]
+            row_list = [row['query1'], row['query2'], str(row['label']), row['category']]
             data_list.append(row_list)
         return data_list
 
     def dataAugment(self, train_list, *args):
         #args:'symmetric'=> symmetric_sentence, 'themword'=>sentences_dropthemword, 'pseudo'=>Pseudolabel
         for arg in args:
-            if arg not in ['symmetric', 'themword', 'pseudo', 'sameword', 'transmit']:
+            if arg not in ['chip2019', 'new_category', 'symmetric', 'themword', 'pseudo', 'sameword', 'transmit']:
                 raise ValueError('the input must choose from [''symmetric', 'themword', 'pseudo', 'transmit'']')
         keywords = ['糖尿病', '高血压', '艾滋病', '乳腺癌', '乙肝']
         prob = True
         df_train = self.list_dataframe(train_list)
         for idx, arg in enumerate(args):
-            if arg == 'symmetric':
+            if arg == 'new_category':
+                new_data = self.category_external_data()
+            elif arg == 'chip2019':
+                new_data = self.chips2019_external_data()
+            elif arg == 'symmetric':
                 new_data = self.symmetric_sentence(df_train)
             elif arg == 'themword':
                 new_data = self.sentences_dropthemword(df_train, keywords, prob)
@@ -189,7 +205,7 @@ class DataAugment:
             elif arg == 'transmit':
                 new_data = self.sentence_set_pair(df_train, num=8000)
             else:
-                raise ValueError("The input must choose from ['symmetric','themword','pseudo', 'sameword']")
+                raise ValueError("The input must choose from ['chip2019','new_category',''symmetric','themword','pseudo', 'sameword']")
             if idx == 0:
                 all_data = new_data
             else:

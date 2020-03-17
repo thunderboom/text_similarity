@@ -623,9 +623,9 @@ def model_save(config, model, name=None):
     logger.info("model saved, path: %s", file_name)
 
 
-def model_load(config, model, num=0 ,device='cpu'):
+def model_load(config, model, num=0, device='cpu'):
     device_id = config.device_id
-    file_name = os.path.join(config.save_path[num], config.models_name[num]+'.pkl')
+    file_name = os.path.join(config.save_path[num], config.save_file[num]+'.pkl')
     logger.info('loading model: %s', file_name)
     model.load_state_dict(torch.load(file_name,
                                      map_location=device if device == 'cpu' else "{}:{}".format(device, device_id)))

@@ -76,7 +76,6 @@ def train_dev_test(
     model,
     tokenizer,
     train_enhancement=None,
-    enhancement_arg=None,
     dev_data=None,
     test_examples=None,
 ):
@@ -88,9 +87,8 @@ def train_dev_test(
 
     # 数据增强
     if train_enhancement:
-        ext_data = train_enhancement(train_data, enhancement_arg)
-        logger.info('通过数据增强后，新增数据: %d', len(ext_data))
-        train_data.extend(ext_data)
+        logger.info('通过数据增强后，新增数据: %d', len(train_enhancement))
+        train_data.extend(train_enhancement)
 
     config.train_num_examples = len(train_data)
     # 特征转化
@@ -160,7 +158,6 @@ def k_fold_cross_validation(
         model,
         tokenizer,
         train_enhancement=None,
-        enhancement_arg=None,
         test_examples=None,
         save_model=False,
 ):
@@ -170,7 +167,6 @@ def k_fold_cross_validation(
     :param model:
     :param tokenizer:
     :param train_enhancement: 数据增强的接口，仅作用在train上，返回的数据需和train_examples形式一样
-    :param enhancement_arg:
     :param test_examples:
     :param save_model:
     :return: dev_evaluate : list [dev_acc,...]
@@ -183,8 +179,14 @@ def k_fold_cross_validation(
     for train_data, dev_data in k_fold_loader:
         idx += 1
         logger.info('k-fold CrossValidation: # %d', idx)
-        best_model, dev_acc, predict_label = train_dev_test(config, train_data, model, tokenizer,
-                       train_enhancement, enhancement_arg, dev_data, test_examples=test_examples)
+        best_model, dev_acc, predict_label = train_dev_test(
+            config=config,
+            train_data=train_data,
+            model=model,
+            tokenizer=tokenizer,
+            train_enhancement=train_enhancement,
+            dev_data=dev_data,
+            test_examples=test_examples)
         dev_predict_set.append(predict_label)
         # 清理显存
         if config.device.type == 'gpu':
@@ -207,7 +209,6 @@ def cross_validation(
         tokenizer,
         pattern='k_fold',
         train_enhancement=None,
-        enhancement_arg=None,
         test_examples=None,
 ):
     if pattern == 'k_fold':
@@ -215,7 +216,6 @@ def cross_validation(
         dev_evaluate, _ = k_fold_cross_validation(
             config, train_examples, model, tokenizer,
             train_enhancement=train_enhancement,
-            enhancement_arg=enhancement_arg,
             test_examples=None,
         )
         return None, dev_evaluate, None
@@ -223,7 +223,6 @@ def cross_validation(
         dev_evaluate, dev_predict_set = k_fold_cross_validation(
             config, train_examples, model, tokenizer,
             train_enhancement=train_enhancement,
-            enhancement_arg=enhancement_arg,
             test_examples=test_examples
         )
         return None, dev_evaluate, dev_predict_set
@@ -232,7 +231,6 @@ def cross_validation(
         dev_evaluate, dev_predict_set = k_fold_cross_validation(
             config, train_examples, model, tokenizer,
             train_enhancement=train_enhancement,
-            enhancement_arg=enhancement_arg,
             test_examples=None,
             save_model=True
         )
@@ -245,7 +243,6 @@ def cross_validation(
             model=model,
             tokenizer=tokenizer,
             train_enhancement=train_enhancement,
-            enhancement_arg=enhancement_arg,
             dev_data=dev_examples,
             test_examples=None)
         return model_example, None, None
@@ -256,7 +253,6 @@ def cross_validation(
             model=model,
             tokenizer=tokenizer,
             train_enhancement=train_enhancement,
-            enhancement_arg=enhancement_arg,
             dev_data=dev_examples,
             test_examples=test_examples)
         return model_example, dev_acc, predict_label

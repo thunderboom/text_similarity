@@ -4,7 +4,6 @@ from models.bert import Bert, BertSentence
 from sklearn import metrics
 
 from utils.k_fold import cross_validation
-from utils.augment import DataAugment
 from utils.utils import *
 from utils.train_eval import *
 
@@ -35,7 +34,7 @@ class NewsConfig:
         self.tokenizer_file = os.path.join(absdir + _pretrain_path, _tokenizer_file)
         self.data_dir = absdir + _data_path
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')              # 设备
-        self.device_id = 3
+        self.device_id = 0
         self.do_lower_case = True
         self.label_on_test_set = True
         self.requires_grad = True
@@ -64,8 +63,9 @@ class NewsConfig:
         self.save_path = absdir + '/model_saved' + '/' + self.task + '/' + self.models_name
         self.seed = 369
         # 增强数据
-        self.data_augment = False
-        self.data_augment_args = 'transmit'
+        self.data_augment = True
+        # [train_augment, train_dev_augment, chip2019, new_category]
+        self.data_augment_method = ['train_dev_augment', 'new_category']
         # Bert的后几层加权输出
         self.weighted_layer_tag = False
         self.weighted_layer_num = 12
@@ -92,6 +92,9 @@ class NewsConfig:
         self.symptom_replace_word = ''
         # prob
         self.out_prob = True
+        # variety_save
+        self.model_tag = "ernie"  # 修改标签，以确保不覆盖
+        self.variety_save_path = "./variety/variety.csv"
 
 
 def thucNews_task(config):
@@ -114,6 +117,7 @@ def thucNews_task(config):
     dev_examples = processor.get_dev_examples(config.data_dir)
     # test_examples = processor.get_test_examples(config.data_dir)
     test_examples = copy.deepcopy(dev_examples)
+    augment_examples = processor.read_data_augment(config.data_augment_method)
 
     cur_model = MODEL_CLASSES[config.use_model]
     model = cur_model(config)
@@ -124,12 +128,16 @@ def thucNews_task(config):
         model_load(config, model, device='cpu')
 
     model_example, dev_evaluate, predict_label = cross_validation(
-        config, train_examples, dev_examples,
-        model, tokenizer, pattern=config.pattern,
-        train_enhancement=DataAugment().dataAugment if config.data_augment else None,
-        enhancement_arg=config.data_augment_args,
+        config=config,
+        train_examples=train_examples,
+        dev_examples=dev_examples,
+        model=model,
+        tokenizer=tokenizer,
+        pattern=config.pattern,
+        train_enhancement=augment_examples if config.data_augment else None,
         test_examples=test_examples)
-    logging.info(dev_evaluate)
+
+    logging.info("dev_evaluate: {}".format(dev_evaluate))
 
     # volt for predict
     if config.pattern == 'k_volt':

@@ -13,6 +13,7 @@ class TryDataProcessor:
         self.stop_word_list = None
         self.medicine_list = None
         self.symptom_list = None
+        self.data_dir = config.data_dir
 
         self.medicine_replace_word = config.medicine_replace_word
         self.symptom_replace_word = config.symptom_replace_word
@@ -56,6 +57,20 @@ class TryDataProcessor:
             for line in tsv_list[1:]:
                 label_list.append(int(line[4]))
         return label_list
+
+    def read_data_augment(self, augment_list):
+
+        data_augment = []
+        for augment in augment_list:
+            input_file = os.path.join(self.data_dir, augment+".csv")
+            logger.info('reading {}'.format(input_file))
+            try:
+                data = self._read_csv(input_file)
+                data_augment.extend(data)
+            except Exception as e:
+                logger.info(str(e))
+                logger.info('read err {}'.format(input_file))
+        return data_augment
 
     def _read_csv(self, input_file):
         """
