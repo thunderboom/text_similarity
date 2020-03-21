@@ -1,15 +1,16 @@
 from processors.TryDataProcessor import TryDataProcessor
 from transformers import BertTokenizer
 from models.bert import Bert, BertSentence
+from sklearn import metrics
 
 from utils.k_fold import cross_validation
-from utils.augment import DataAugment
 from utils.utils import *
 from utils.train_eval import *
 
 MODEL_CLASSES = {
    'bert':  Bert,
    'bert_sentence': BertSentence,
+   'multi_bert': Bert,  # multi_loss_tag
 }
 
 
@@ -18,7 +19,7 @@ class NewsConfig:
     def __init__(self):
         absdir = os.path.dirname(os.path.abspath(__file__))
         _pretrain_path = '/pretrain_models/chinese_roberta_wwm_ext_pytorch'
-        _config_file = 'bert_config.json'
+        _config_file = 'config.json'
         _model_file = 'pytorch_model.bin'
         _tokenizer_file = 'vocab.txt'
         _data_path = '/real_data'
@@ -28,12 +29,12 @@ class NewsConfig:
 
         self.models_name = 'base_roberta_wwm_ext'
         self.task = 'base_real_data'
-        self.config_file = os.path.join(absdir + _pretrain_path, _config_file)
-        self.model_name_or_path = os.path.join(absdir + _pretrain_path, _model_file)
+        self.config_file = [os.path.join(absdir + _pretrain_path, _config_file)]
+        self.model_name_or_path = [os.path.join(absdir + _pretrain_path, _model_file)]
         self.tokenizer_file = os.path.join(absdir + _pretrain_path, _tokenizer_file)
         self.data_dir = absdir + _data_path
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')              # 设备
-        self.device_id = 3
+        self.device_id = 0
         self.do_lower_case = True
         self.label_on_test_set = True
         self.requires_grad = True
@@ -43,13 +44,14 @@ class NewsConfig:
         self.dev_num_examples = 0
         self.test_num_examples = 0
         self.hidden_dropout_prob = 0.1
-        self.hidden_size = 768
-        self.early_stop = True
-        self.require_improvement = 700 if self.use_model == 'bert' else 1000                                                           # 若超过1000batch效果还没提升，则提前结束训练
-        self.num_train_epochs = 8                                                               # epoch数
-        self.batch_size = 32                                                                     # mini-batch大小
-        self.pad_size = 64 if self.use_model == 'bert' else 32                                                                       # 每句话处理成的长度
+        self.hidden_size = [768]
+        self.early_stop = False
+        self.require_improvement = 700 if self.use_model == 'bert' else 1000                    # 若超过1000batch效果还没提升，则提前结束训练
+        self.num_train_epochs = 10                                                               # epoch数
+        self.batch_size = 64                                                                     # mini-batch大小
+        self.pad_size = 64                                                      # 每句话处理成的长度
         self.learning_rate = 2e-5                                                               # 学习率
+        self.head_learning_rate = 1e-3
         self.weight_decay = 0.01                                                                # 权重衰减因子
         self.warmup_proportion = 0.1                                                            # Proportion of training to perform linear learning rate warmup for.
         self.k_fold = 8
@@ -63,8 +65,10 @@ class NewsConfig:
         self.test_split = 0.1
         self.seed = 369
         # 增强数据
-        self.data_augment = False
-        self.data_augment_args = 'sameword'
+        self.data_augment = True
+        # [train_augment, train_dev_augment, chip2019, new_category]
+        # predict下使用train_augment, full_train下使用train_dev_augment
+        self.data_augment_method = ['train_augment', 'new_category', 'chip2019']
         # Bert的后几层加权输出
         self.weighted_layer_tag = False
         self.weighted_layer_num = 12
@@ -73,6 +77,26 @@ class NewsConfig:
         # 计算loss的方法
         self.loss_method = 'binary'  # [ binary, cross_entropy]
         self.z_test = "multi-sample-drop:1"
+        # 差分学习率
+        self.diff_learning_rate = False
+        # multi-task
+        self.multi_loss_tag = False
+        self.multi_loss_weight = 0.1
+        self.multi_class_list = []  # 第二任务标签
+        self.multi_num_labels = 0  # 第二任务标签 数量
+        # train pattern
+        self.pattern = 'predict'  # [predict, full_train, k_fold, k_volt, k_volt_submit]
+        # preprocessing
+        self.stop_word_valid = False
+        self.medicine_valid = False
+        self.symptom_valid = False
+        self.medicine_replace_word = ''
+        self.symptom_replace_word = ''
+        # prob
+        self.out_prob = True
+        # variety_save
+        self.model_tag = "ernie"  # 修改标签，以确保不覆盖
+        self.variety_save_path = "./variety/variety.csv"
 
 
 def thucNews_task(config):
@@ -84,14 +108,18 @@ def thucNews_task(config):
 
     tokenizer = BertTokenizer.from_pretrained(config.tokenizer_file,
                                               do_lower_case=config.do_lower_case)
-    processor = TryDataProcessor()
+    processor = TryDataProcessor(config)
     config.class_list = processor.get_labels()
     config.num_labels = len(config.class_list)
+    if config.multi_loss_tag:
+        config.multi_class_list = processor.get_second_task_labels()
+        config.multi_num_labels = len(config.multi_class_list)
 
     train_examples = processor.get_train_examples(config.data_dir)
     dev_examples = processor.get_dev_examples(config.data_dir)
     # test_examples = processor.get_test_examples(config.data_dir)
-    test_examples = None
+    test_examples = copy.deepcopy(dev_examples)
+    augment_examples = processor.read_data_augment(config.data_augment_method)
 
     cur_model = MODEL_CLASSES[config.use_model]
     model = cur_model(config)
@@ -101,13 +129,27 @@ def thucNews_task(config):
     if config.load_save_model:
         model_load(config, model, device='cpu')
 
-    dev_evaluate, predict_label = cross_validation(
-        config, train_examples, dev_examples,
-        model, tokenizer, pattern='k-fold',
-        train_enhancement=DataAugment().dataAugment if config.data_augment else None,
-        enhancement_arg=config.data_augment_args,
+    model_example, dev_evaluate, predict_label = cross_validation(
+        config=config,
+        train_examples=train_examples,
+        dev_examples=dev_examples,
+        model=model,
+        tokenizer=tokenizer,
+        pattern=config.pattern,
+        train_enhancement=augment_examples if config.data_augment else None,
         test_examples=test_examples)
-    logging.info(dev_evaluate)
+    logging.info("dev_evaluate: {}".format(dev_evaluate))
+
+    # volt for predict
+    if config.pattern == 'k_volt':
+        dev_labels = processor.get_dev_labels(config.data_dir)
+        final_pred = k_fold_volt_predict(predict_label)
+        final_acc = metrics.accuracy_score(dev_labels, final_pred)
+        logging.info('final acc is :{}'.format(final_acc))
+    elif config.pattern == 'full_train':
+        model_save(config, model_example)
+
+    return dev_evaluate
 
 
 if __name__ == '__main__':

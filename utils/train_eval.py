@@ -99,7 +99,7 @@ def model_train(config, model, train_iter, dev_iter=None):
             else:
                 labels_tensor = torch.tensor(labels).type(torch.LongTensor).to(config.device)
 
-            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, 4)
+            outputs, loss = model(input_ids, attention_mask, token_type_ids, labels_tensor, 1)
 
             model.zero_grad()
             loss.backward()

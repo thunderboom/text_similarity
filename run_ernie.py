@@ -68,7 +68,7 @@ class NewsConfig:
         self.data_augment = True
         # [train_augment, train_dev_augment, chip2019, new_category]
         # predict下使用train_augment, full_train下使用train_dev_augment
-        self.data_augment_method = ['train_dev_augment', 'new_category']
+        self.data_augment_method = ['train_dev_augment', 'new_category', 'chip2019']
         # Bert的后几层加权输出
         self.weighted_layer_tag = False
         self.weighted_layer_num = 12

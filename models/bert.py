@@ -58,7 +58,7 @@ class Bert(nn.Module):
             self.weight_layer = config.weighted_layer_num
             self.weight = torch.nn.Parameter(torch.FloatTensor(self.weight_layer), requires_grad=True)
             self.softmax = nn.Softmax()
-            self.pooler = nn.Sequential(nn.Linear(config.hidden_size, config.hidden_size), nn.Tanh())
+            self.pooler = nn.Sequential(nn.Linear(self.hidden_size, self.hidden_size), nn.Tanh())
 
         elif self.pooling_tag:
             self.maxPooling = nn.MaxPool1d(64)

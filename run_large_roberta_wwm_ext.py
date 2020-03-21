@@ -66,14 +66,14 @@ class NewsConfig:
         # 增强数据
         self.data_augment = True
         # [train_augment, train_dev_augment, chip2019, new_category]
-        self.data_augment_method = ['train_dev_augment', 'new_category']
+        self.data_augment_method = ['train_dev_augment', 'new_category', 'chip2019']
         # Bert的后几层加权输出
         self.weighted_layer_tag = False
         self.weighted_layer_num = 12
         # 拼接max_pooling和avg_pooling
         self.pooling_tag = False
         # 计算loss的方法
-        self.loss_method = 'binary'  # [ binary, cross_entropy, focal_loss, ghmc]
+        self.loss_method = 'focal_loss'  # [ binary, cross_entropy, focal_loss, ghmc]
         # 说明
         self.z_test = 'multi-sample-drop:1'
         # 差分学习率
