@@ -206,14 +206,8 @@ model_data 文件夹                            训练数据后，保存的模�
 * python == 3.7.4 
 * pytorch == 1.31 
 * transformers==2.3.0  
-* matplotlib==3.1.1  
-* jieba==0.39  
 * pandas==0.25.1  
 * numpy==1.17.2  
-* tqdm==4.36.1
-* seaborn==0.9.0  
-* scikit_learn==0.22.1  
-* tensorboardX==2.0  
 
 ## 4.运行说明
 
